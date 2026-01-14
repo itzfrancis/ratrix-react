@@ -11,7 +11,7 @@ export const getBracketIndex = (w, limits) => {
 export const strategies = {
     fixed: (w, rates, limits) => {
         const index = getBracketIndex(w, limits);
-        if (index === -1 || !isValid(rates[index])) return null; 
+        if (index === -1 || !isValid(rates[index])) return null;
         return w * rates[index];
     },
     flat: (w, rates, limits) => {
@@ -30,7 +30,7 @@ export const strategies = {
         let remaining = w;
         let prevMax = 0;
         for (let i = 0; i < limits.length; i++) {
-            if (!isValid(rates[i])) return null; 
+            if (!isValid(rates[i])) return null;
             const capacity = limits[i] - prevMax;
             const fill = Math.min(remaining, capacity);
             if (fill > 0) {
@@ -40,7 +40,7 @@ export const strategies = {
             prevMax = limits[i];
             if (remaining <= 0) break;
         }
-        return remaining > 0 ? null : total; 
+        return remaining > 0 ? null : total;
     },
     minCumulative: (w, rates, limits) => {
         let total = 0;
@@ -51,7 +51,7 @@ export const strategies = {
             const capacity = limits[i] - prevMax;
             const fill = Math.min(remaining, capacity);
             if (fill > 0) {
-                if (i === 0) total += rates[0]; 
+                if (i === 0) total += rates[0];
                 else total += fill * rates[i];
                 remaining -= fill;
             }
@@ -62,17 +62,17 @@ export const strategies = {
     },
     minExcess: (w, rates, limits) => {
         if (!isValid(rates[0]) || !isValid(rates[1])) return null;
-        const limit = limits[0]; 
-        const baseFlat = rates[0];      
-        const excessRate = rates[1];     
+        const limit = limits[0];
+        const baseFlat = rates[0];
+        const excessRate = rates[1];
         if (w <= limit) return baseFlat;
         return baseFlat + ((w - limit) * excessRate);
     },
     excess: (w, rates, limits) => {
         if (!isValid(rates[0]) || !isValid(rates[1])) return null;
-        const limit = limits[0]; 
-        const baseRate = rates[0];       
-        const excessRate = rates[1];     
+        const limit = limits[0];
+        const baseRate = rates[0];
+        const excessRate = rates[1];
         if (w <= limit) return w * baseRate;
         return (limit * baseRate) + ((w - limit) * excessRate);
     }

@@ -8,11 +8,11 @@ const EditorView = ({ switchToViewer }) => {
     // Destructure restoreClient from context
     const { getActiveClient, updateClientData, restoreClient } = useData();
     const client = getActiveClient();
-    
+
     // UI State
     const [model, setModel] = useState('fixed');
     const [inputs, setInputs] = useState({
-        origin: '', dest: '', 
+        origin: '', dest: '',
         serviceMode: 'DOOR TO DOOR',
         category: 'AIR', // 1. Added Category State
         dimL: '', dimW: '', dimH: '', volDivisor: 6000,
@@ -37,7 +37,7 @@ const EditorView = ({ switchToViewer }) => {
     // --- CALCULATION LOGIC ---
     const handleCalculate = () => {
         if (!activeProfile) return;
-        
+
         const L = parseFloat(inputs.dimL) || 0;
         const W = parseFloat(inputs.dimW) || 0;
         const H = parseFloat(inputs.dimH) || 0;
@@ -45,11 +45,11 @@ const EditorView = ({ switchToViewer }) => {
         const volWt = parseFloat(((div > 0) ? (L * W * H) / div : 0).toFixed(2));
         const cbm = (L * W * H) / 1000000;
         const actWt = parseFloat(inputs.weight) || 0;
-        
+
         const chargeable = inputs.chargeBasis === 'volumetric' ? volWt : actWt;
-        
+
         const routeIndex = activeProfile.rows.findIndex(r => r.origin === inputs.origin && r.dest === inputs.dest);
-        
+
         let result = { price: 0, error: null, actWt, volWt, cbm, routeIndex };
 
         if (chargeable <= 0) {
@@ -78,7 +78,7 @@ const EditorView = ({ switchToViewer }) => {
 
     // --- TABLE EDITING HANDLERS ---
     const handleEditRate = (rIdx, cIdx, val) => {
-        const newData = JSON.parse(JSON.stringify(dataStore)); 
+        const newData = JSON.parse(JSON.stringify(dataStore));
         const prof = newData[model].profiles[activeProfileId];
         prof.rows[rIdx].rates[cIdx] = val === "" ? null : parseFloat(val);
         updateStore(newData);
@@ -90,7 +90,7 @@ const EditorView = ({ switchToViewer }) => {
         prof.rows[rIdx][field] = val;
         updateStore(newData);
     };
-    
+
     const addRow = () => {
         const newData = JSON.parse(JSON.stringify(dataStore));
         const prof = newData[model].profiles[activeProfileId];
@@ -99,7 +99,7 @@ const EditorView = ({ switchToViewer }) => {
     };
 
     const deleteRow = (idx) => {
-        if(activeProfile.rows.length <=1) return;
+        if (activeProfile.rows.length <= 1) return;
         const newData = JSON.parse(JSON.stringify(dataStore));
         const prof = newData[model].profiles[activeProfileId];
         prof.rows.splice(idx, 1);
@@ -109,19 +109,19 @@ const EditorView = ({ switchToViewer }) => {
     const addColumn = () => {
         const newData = JSON.parse(JSON.stringify(dataStore));
         const prof = newData[model].profiles[activeProfileId];
-        const last = prof.limits[prof.limits.length -1] || 0;
+        const last = prof.limits[prof.limits.length - 1] || 0;
         prof.limits.push(last + 50);
         prof.rows.forEach(r => r.rates.push(null));
         updateStore(newData);
     };
-    
+
     const deleteColumn = (idx) => {
-         const newData = JSON.parse(JSON.stringify(dataStore));
-         const prof = newData[model].profiles[activeProfileId];
-         if(prof.limits.length <= 1) return;
-         prof.limits.splice(idx, 1);
-         prof.rows.forEach(r => r.rates.splice(idx, 1));
-         updateStore(newData);
+        const newData = JSON.parse(JSON.stringify(dataStore));
+        const prof = newData[model].profiles[activeProfileId];
+        if (prof.limits.length <= 1) return;
+        prof.limits.splice(idx, 1);
+        prof.rows.forEach(r => r.rates.splice(idx, 1));
+        updateStore(newData);
     };
 
     const handleLimitChange = (idx, val) => {
@@ -134,10 +134,10 @@ const EditorView = ({ switchToViewer }) => {
     // --- PROFILE MANAGEMENT (ADD / RENAME / DELETE) ---
     const addNewProfile = () => {
         const name = prompt("Table Name:");
-        if(!name) return;
+        if (!name) return;
         const newData = JSON.parse(JSON.stringify(dataStore));
         const pid = generateId('p_');
-        const defLimits = [50,100,150,500];
+        const defLimits = [50, 100, 150, 500];
         newData[model].profiles[pid] = {
             name, limits: defLimits, rows: [createEmptyRow(defLimits.length)]
         };
@@ -182,10 +182,10 @@ const EditorView = ({ switchToViewer }) => {
     // --- IMPORT / EXPORT HANDLERS ---
 
     const handleExportExcel = async () => {
-        if(!activeProfile) return;
+        if (!activeProfile) return;
         const wb = new ExcelJS.Workbook();
         const ws = wb.addWorksheet("Rates");
-        
+
         ws.addRow([`Client: ${client.name}`]);
         ws.addRow([`Table: ${activeProfile.name}`]);
         // 2. Updated Export to include Category
@@ -196,10 +196,10 @@ const EditorView = ({ switchToViewer }) => {
 
         const headers = ["Origin", "Destination"];
         activeProfile.limits.forEach((lim, i) => {
-            const prev = i === 0 ? 1 : activeProfile.limits[i-1] + 1;
+            const prev = i === 0 ? 1 : activeProfile.limits[i - 1] + 1;
             headers.push(`${prev}-${lim}`);
         });
-        
+
         const headerRow = ws.addRow(headers);
         headerRow.font = { bold: true };
         headerRow.eachCell((cell) => {
@@ -230,20 +230,20 @@ const EditorView = ({ switchToViewer }) => {
         const blob = new Blob([json], { type: "application/json" });
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
-        a.download = `backup_${client.name.replace(/ /g,'_')}.json`;
+        a.download = `backup_${client.name.replace(/ /g, '_')}.json`;
         a.click();
     };
 
     // Restore JSON
     const handleRestoreJson = (e) => {
         const file = e.target.files[0];
-        if(!file) return;
+        if (!file) return;
         const reader = new FileReader();
         reader.onload = (evt) => {
             try {
                 const imported = JSON.parse(evt.target.result);
                 if (imported.app_version === "ratrix_v3_client_backup" && imported.client_data) {
-                    if(confirm(`Restore data for "${imported.client_data.name}"? This will create a NEW client entry.`)) {
+                    if (confirm(`Restore data for "${imported.client_data.name}"? This will create a NEW client entry.`)) {
                         restoreClient(imported.client_data);
                         alert("Client restored successfully!");
                     }
@@ -262,8 +262,8 @@ const EditorView = ({ switchToViewer }) => {
     // Import Excel (Logic ported from script.js)
     const handleImportExcel = (e) => {
         const file = e.target.files[0];
-        if(!file) return;
-        
+        if (!file) return;
+
         const reader = new FileReader();
         reader.onload = async (evt) => {
             const buffer = evt.target.result;
@@ -274,13 +274,13 @@ const EditorView = ({ switchToViewer }) => {
 
             // Find Header Row (Look for "Origin")
             let headerRowIdx = -1;
-            for(let i=1; i<=10; i++) {
+            for (let i = 1; i <= 10; i++) {
                 const row = ws.getRow(i);
                 const val = row.getCell(1).value ? row.getCell(1).value.toString() : '';
-                if(val.trim() === 'Origin') { headerRowIdx = i; break; }
+                if (val.trim() === 'Origin') { headerRowIdx = i; break; }
             }
 
-            if(headerRowIdx === -1) { alert("Header row 'Origin' not found."); return; }
+            if (headerRowIdx === -1) { alert("Header row 'Origin' not found."); return; }
 
             const headerRow = ws.getRow(headerRowIdx);
             const headers = [];
@@ -291,37 +291,37 @@ const EditorView = ({ switchToViewer }) => {
             // Detect rate columns (1-50, 1_50, Rate_1_50)
             const newLimits = [];
             const rateColIndices = [];
-            
+
             headers.forEach((h, colIdx) => {
-                if(!h) return;
+                if (!h) return;
                 // clean header string
                 const normalized = h.trim().replace(/rate_/i, '').replace(/-/g, '_');
                 const parts = normalized.split('_');
                 const limitVal = parseFloat(parts[parts.length - 1]);
-                
-                if(!isNaN(limitVal) && limitVal > 0) {
-                      newLimits.push(limitVal);
-                      rateColIndices.push(colIdx);
+
+                if (!isNaN(limitVal) && limitVal > 0) {
+                    newLimits.push(limitVal);
+                    rateColIndices.push(colIdx);
                 }
             });
 
-            if(newLimits.length === 0) { alert("No rate columns found in header."); return; }
+            if (newLimits.length === 0) { alert("No rate columns found in header."); return; }
 
             // Check if limits changed
             let limitsChanged = false;
-            if(JSON.stringify(newLimits) !== JSON.stringify(activeProfile.limits)) {
-                if(!confirm("The Excel file has different weight columns. Update table structure?")) return;
+            if (JSON.stringify(newLimits) !== JSON.stringify(activeProfile.limits)) {
+                if (!confirm("The Excel file has different weight columns. Update table structure?")) return;
                 limitsChanged = true;
             }
 
             // Read Rows
             const newRows = [];
             ws.eachRow((row, rowNumber) => {
-                if(rowNumber <= headerRowIdx) return;
+                if (rowNumber <= headerRowIdx) return;
                 const origin = row.getCell(1).value ? row.getCell(1).value.toString().trim() : "";
                 const dest = row.getCell(2).value ? row.getCell(2).value.toString().trim() : "";
-                
-                if(!origin && !dest) return;
+
+                if (!origin && !dest) return;
 
                 const rowRates = [];
                 rateColIndices.forEach(colIdx => {
@@ -330,18 +330,18 @@ const EditorView = ({ switchToViewer }) => {
                     val = parseFloat(val);
                     rowRates.push(isNaN(val) ? null : val);
                 });
-                
+
                 newRows.push({ origin, dest, rates: rowRates });
             });
 
             // Apply updates
             const newData = JSON.parse(JSON.stringify(dataStore));
             const prof = newData[model].profiles[activeProfileId];
-            
-            if(limitsChanged) {
+
+            if (limitsChanged) {
                 prof.limits = newLimits;
-                 // Adjust existing rows if we kept them, but here we usually replace or append.
-                 // We will replace rows with Excel data for now as per original logic implies
+                // Adjust existing rows if we kept them, but here we usually replace or append.
+                // We will replace rows with Excel data for now as per original logic implies
             }
             prof.rows = newRows;
 
@@ -361,9 +361,9 @@ const EditorView = ({ switchToViewer }) => {
     return (
         <div className="calculator-container">
             <div className="header">
-                <h1>RATRIX <span style={{fontWeight:400, color:'var(--border-color)', margin:'0 10px'}}>|</span> 
+                <h1>RATRIX <span style={{ fontWeight: 400, color: 'var(--border-color)', margin: '0 10px' }}>|</span>
                     <span className="current-client-badge">{client.name}</span>
-                    <span style={{fontSize: '0.7rem', color:'var(--text-muted)', marginLeft: '10px', fontWeight: 'normal', fontFamily:'monospace'}}>#{client.id}</span>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginLeft: '10px', fontWeight: 'normal', fontFamily: 'monospace' }}>#{client.id}</span>
                 </h1>
                 <button className="btn-save-view" onClick={switchToViewer}>💾 Save & View</button>
             </div>
@@ -378,10 +378,10 @@ const EditorView = ({ switchToViewer }) => {
                         </select>
                     </div>
 
-                    <div className="input-group" style={{paddingTop: 10, borderTop: '1px dashed var(--border-color)'}}>
+                    <div className="input-group" style={{ paddingTop: 10, borderTop: '1px dashed var(--border-color)' }}>
                         <label>Saved Table</label>
-                        <div style={{display:'flex', gap:6}}>
-                            <select style={{flex:1}} value={activeProfileId} onChange={(e) => {
+                        <div style={{ display: 'flex', gap: 6 }}>
+                            <select style={{ flex: 1 }} value={activeProfileId} onChange={(e) => {
                                 const newData = JSON.parse(JSON.stringify(dataStore));
                                 newData[model].activeId = e.target.value;
                                 updateStore(newData);
@@ -398,7 +398,7 @@ const EditorView = ({ switchToViewer }) => {
 
                     <div className="input-group">
                         <label>Categories for Rates</label>
-                        <select value={inputs.category} onChange={e => setInputs({...inputs, category: e.target.value})}>
+                        <select value={inputs.category} onChange={e => setInputs({ ...inputs, category: e.target.value })}>
                             <option value="AIR">AIR</option>
                             <option value="LAND">LAND</option>
                             <option value="SEA">SEA</option>
@@ -407,7 +407,7 @@ const EditorView = ({ switchToViewer }) => {
 
                     <div className="input-group">
                         <label>Charge Code</label>
-                        <select value={inputs.serviceMode} onChange={e => setInputs({...inputs, serviceMode: e.target.value})}>
+                        <select value={inputs.serviceMode} onChange={e => setInputs({ ...inputs, serviceMode: e.target.value })}>
                             <option value="DOOR TO DOOR">DOOR TO DOOR</option>
                             <option value="PORT TO PORT">PORT TO PORT</option>
                             <option value="DOOR TO PORT">DOOR TO PORT</option>
@@ -417,12 +417,12 @@ const EditorView = ({ switchToViewer }) => {
 
                     <div className="input-group">
                         <label>Route</label>
-                        <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:8}}>
-                            <select value={inputs.origin} onChange={e => setInputs({...inputs, origin: e.target.value})}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                            <select value={inputs.origin} onChange={e => setInputs({ ...inputs, origin: e.target.value })}>
                                 <option value="">Origin</option>
                                 {origins.map(o => <option key={o} value={o}>{o}</option>)}
                             </select>
-                            <select value={inputs.dest} onChange={e => setInputs({...inputs, dest: e.target.value})}>
+                            <select value={inputs.dest} onChange={e => setInputs({ ...inputs, dest: e.target.value })}>
                                 <option value="">Dest</option>
                                 {dests.map(d => <option key={d} value={d}>{d}</option>)}
                             </select>
@@ -432,25 +432,25 @@ const EditorView = ({ switchToViewer }) => {
                     <div className="input-group">
                         <label>Dimensions (cm)</label>
                         <div className="dim-grid">
-                            <input type="number" placeholder="L" value={inputs.dimL} onChange={e => setInputs({...inputs, dimL: e.target.value})} />
-                            <input type="number" placeholder="W" value={inputs.dimW} onChange={e => setInputs({...inputs, dimW: e.target.value})} />
-                            <input type="number" placeholder="H" value={inputs.dimH} onChange={e => setInputs({...inputs, dimH: e.target.value})} />
+                            <input type="number" placeholder="L" value={inputs.dimL} onChange={e => setInputs({ ...inputs, dimL: e.target.value })} />
+                            <input type="number" placeholder="W" value={inputs.dimW} onChange={e => setInputs({ ...inputs, dimW: e.target.value })} />
+                            <input type="number" placeholder="H" value={inputs.dimH} onChange={e => setInputs({ ...inputs, dimH: e.target.value })} />
                         </div>
-                    </div>
-                    
-                    <div className="input-group">
-                         <label>Vol Divisor</label>
-                         <input type="number" value={inputs.volDivisor} onChange={e => setInputs({...inputs, volDivisor: e.target.value})} />
                     </div>
 
                     <div className="input-group">
-                         <label>Weight (kg)</label>
-                         <input type="number" value={inputs.weight} onChange={e => setInputs({...inputs, weight: e.target.value})} />
+                        <label>Vol Divisor</label>
+                        <input type="number" value={inputs.volDivisor} onChange={e => setInputs({ ...inputs, volDivisor: e.target.value })} />
+                    </div>
+
+                    <div className="input-group">
+                        <label>Weight (kg)</label>
+                        <input type="number" value={inputs.weight} onChange={e => setInputs({ ...inputs, weight: e.target.value })} />
                     </div>
 
                     <div className="input-group">
                         <label>Charge Basis</label>
-                        <select value={inputs.chargeBasis} onChange={e => setInputs({...inputs, chargeBasis: e.target.value})}>
+                        <select value={inputs.chargeBasis} onChange={e => setInputs({ ...inputs, chargeBasis: e.target.value })}>
                             <option value="actual">Actual Weight</option>
                             <option value="volumetric">Volumetric Weight</option>
                         </select>
@@ -464,13 +464,13 @@ const EditorView = ({ switchToViewer }) => {
                         <table className="rate-table">
                             <thead>
                                 <tr>
-                                    <th style={{width:100}}>Origin</th>
-                                    <th style={{width:100}}>Dest</th>
+                                    <th style={{ width: 100 }}>Origin</th>
+                                    <th style={{ width: 100 }}>Dest</th>
                                     {activeProfile.limits.map((lim, i) => {
-                                        const prev = i === 0 ? 1 : activeProfile.limits[i-1] + 1;
+                                        const prev = i === 0 ? 1 : activeProfile.limits[i - 1] + 1;
                                         return (
                                             <th key={i}>
-                                                 <div className="col-header-container">
+                                                <div className="col-header-container">
                                                     <button className="btn-col-delete" onClick={() => deleteColumn(i)}>✕</button>
                                                     <div className="range-wrapper">
                                                         <span>{prev}-</span>
@@ -494,9 +494,9 @@ const EditorView = ({ switchToViewer }) => {
                                         </td>
                                         {activeProfile.limits.map((_, cIdx) => (
                                             <td key={cIdx}>
-                                                <input className="editable-input" 
+                                                <input className="editable-input"
                                                     type="number"
-                                                    value={row.rates[cIdx] === null ? "" : row.rates[cIdx]} 
+                                                    value={row.rates[cIdx] === null ? "" : row.rates[cIdx]}
                                                     placeholder="-"
                                                     onChange={(e) => handleEditRate(rIdx, cIdx, e.target.value)} />
                                             </td>
@@ -512,46 +512,46 @@ const EditorView = ({ switchToViewer }) => {
 
                     <div className="action-bar">
                         <button onClick={addRow} className="btn-add">+ Add Route</button>
-                        <button onClick={addColumn} className="btn-add" style={{background: 'var(--bg-secondary)', color:'var(--text-muted)'}}>+ Add Weight Col</button>
+                        <button onClick={addColumn} className="btn-add" style={{ background: 'var(--bg-secondary)', color: 'var(--text-muted)' }}>+ Add Weight Col</button>
                     </div>
-                    
+
                     {/* --- EXPORT/IMPORT BUTTONS --- */}
-                    <div style={{display:'flex', gap:10, marginBottom:15}}>
+                    <div style={{ display: 'flex', gap: 10, marginBottom: 15 }}>
                         <button onClick={handleExportExcel} className="btn-export">Download Excel (XLSX)</button>
                         <button onClick={handleBackupJson} className="btn-export">Backup Client Data (JSON)</button>
                     </div>
 
-                    <div style={{marginBottom: 20, borderTop: '1px dashed var(--border-color)', paddingTop: 15, display:'flex', gap:10}}>
-                        <div style={{flex:1}}>
-                             <input type="file" accept=".xlsx" ref={excelInputRef} style={{display:'none'}} onChange={handleImportExcel} />
-                             <button className="btn-import" style={{background:'var(--bg-container)', border:'1px solid var(--brand-primary)', color:'var(--brand-primary)'}}
+                    <div style={{ marginBottom: 20, borderTop: '1px dashed var(--border-color)', paddingTop: 15, display: 'flex', gap: 10 }}>
+                        <div style={{ flex: 1 }}>
+                            <input type="file" accept=".xlsx" ref={excelInputRef} style={{ display: 'none' }} onChange={handleImportExcel} />
+                            <button className="btn-import" style={{ background: 'var(--bg-container)', border: '1px solid var(--brand-primary)', color: 'var(--brand-primary)' }}
                                 onClick={() => excelInputRef.current.click()}>
                                 Import Excel Rates
-                             </button>
+                            </button>
                         </div>
-                        <div style={{flex:1}}>
-                             <input type="file" accept=".json" ref={jsonInputRef} style={{display:'none'}} onChange={handleRestoreJson} />
-                             <button className="btn-import" onClick={() => jsonInputRef.current.click()}>
+                        <div style={{ flex: 1 }}>
+                            <input type="file" accept=".json" ref={jsonInputRef} style={{ display: 'none' }} onChange={handleRestoreJson} />
+                            <button className="btn-import" onClick={() => jsonInputRef.current.click()}>
                                 📂 Restore Client Backup
-                             </button>
+                            </button>
                         </div>
                     </div>
 
                     <div className="result-box">
-                         <div className="stat-grid">
+                        <div className="stat-grid">
                             <div className="stat-item"><span className="stat-title">Actual</span><span className="stat-val">{calcResult ? calcResult.actWt : 0} kg</span></div>
                             <div className="stat-item"><span className="stat-title">Volumetric</span><span className="stat-val">{calcResult ? calcResult.volWt : 0} kg</span></div>
                             <div className="stat-item"><span className="stat-title">CBM</span><span className="stat-val">{calcResult ? calcResult.cbm.toFixed(4) : 0}</span></div>
-                         </div>
-                         <span className="result-label">Total Freight</span>
-                         <span className="result-value">
-                             {calcResult && calcResult.error ? calcResult.error : `Php ${calcResult ? calcResult.price.toFixed(2) : '0.00'}`}
-                         </span>
-                         <span className="formula-text">
-                            {calcResult && !calcResult.error 
-                                ? `${inputs.category} | ${model} | ${inputs.serviceMode}` 
+                        </div>
+                        <span className="result-label">Total Freight</span>
+                        <span className="result-value">
+                            {calcResult && calcResult.error ? calcResult.error : `Php ${calcResult ? calcResult.price.toFixed(2) : '0.00'}`}
+                        </span>
+                        <span className="formula-text">
+                            {calcResult && !calcResult.error
+                                ? `${inputs.category} | ${model} | ${inputs.serviceMode}`
                                 : 'Enter details to calculate'}
-                         </span>
+                        </span>
                     </div>
                 </div>
             </div>

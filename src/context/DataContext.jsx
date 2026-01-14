@@ -73,7 +73,7 @@ export const DataProvider = ({ children }) => {
     const restoreClient = (clientObj) => {
         const cid = generateId('c_');
         // Ensure we give it a fresh ID but keep the data
-        const newClient = { ...clientObj, id: cid }; 
+        const newClient = { ...clientObj, id: cid };
         setStore(prev => ({
             ...prev,
             activeClientId: cid,
