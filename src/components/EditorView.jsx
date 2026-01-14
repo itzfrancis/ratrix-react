@@ -12,7 +12,9 @@ const EditorView = ({ switchToViewer }) => {
     // UI State
     const [model, setModel] = useState('fixed');
     const [inputs, setInputs] = useState({
-        origin: '', dest: '', serviceMode: 'DOOR TO DOOR',
+        origin: '', dest: '', 
+        serviceMode: 'DOOR TO DOOR',
+        category: 'AIR', // 1. Added Category State
         dimL: '', dimW: '', dimH: '', volDivisor: 6000,
         weight: '', chargeBasis: 'actual'
     });
@@ -129,6 +131,7 @@ const EditorView = ({ switchToViewer }) => {
         updateStore(newData);
     };
 
+    // --- PROFILE MANAGEMENT (ADD / RENAME / DELETE) ---
     const addNewProfile = () => {
         const name = prompt("Table Name:");
         if(!name) return;
@@ -142,6 +145,40 @@ const EditorView = ({ switchToViewer }) => {
         updateStore(newData);
     };
 
+    const renameProfile = () => {
+        if (!activeProfile) return;
+        const newName = prompt("Enter new table name:", activeProfile.name);
+        if (newName && newName.trim() !== "") {
+            const newData = JSON.parse(JSON.stringify(dataStore));
+            newData[model].profiles[activeProfileId].name = newName.trim();
+            updateStore(newData);
+        }
+    };
+
+    const deleteProfile = () => {
+        if (!modelData) return;
+        const profileIds = Object.keys(modelData.profiles);
+
+        // Prevent deleting the last table
+        if (profileIds.length <= 1) {
+            alert("Cannot delete the last table. Please create a new one first.");
+            return;
+        }
+
+        if (!confirm(`Are you sure you want to delete table "${activeProfile.name}"? This cannot be undone.`)) return;
+
+        const newData = JSON.parse(JSON.stringify(dataStore));
+
+        // Delete the profile
+        delete newData[model].profiles[activeProfileId];
+
+        // Switch activeId to the first available ID remaining
+        const remainingIds = Object.keys(newData[model].profiles);
+        newData[model].activeId = remainingIds[0];
+
+        updateStore(newData);
+    };
+
     // --- IMPORT / EXPORT HANDLERS ---
 
     const handleExportExcel = async () => {
@@ -151,7 +188,10 @@ const EditorView = ({ switchToViewer }) => {
         
         ws.addRow([`Client: ${client.name}`]);
         ws.addRow([`Table: ${activeProfile.name}`]);
+        // 2. Updated Export to include Category
+        ws.addRow([`Category: ${inputs.category}`]);
         ws.addRow([`Service Mode: ${inputs.serviceMode}`]);
+        ws.addRow([`Export Date: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`]);
         ws.addRow([]);
 
         const headers = ["Origin", "Destination"];
@@ -176,7 +216,7 @@ const EditorView = ({ switchToViewer }) => {
         const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
-        a.download = `${client.name}_${model}_${activeProfile.name}.xlsx`;
+        a.download = `${client.name}_${inputs.category}_${inputs.serviceMode}_${activeProfile.name}.xlsx`;
         a.click();
     };
 
@@ -260,8 +300,8 @@ const EditorView = ({ switchToViewer }) => {
                 const limitVal = parseFloat(parts[parts.length - 1]);
                 
                 if(!isNaN(limitVal) && limitVal > 0) {
-                     newLimits.push(limitVal);
-                     rateColIndices.push(colIdx);
+                      newLimits.push(limitVal);
+                      rateColIndices.push(colIdx);
                 }
             });
 
@@ -323,6 +363,7 @@ const EditorView = ({ switchToViewer }) => {
             <div className="header">
                 <h1>RATRIX <span style={{fontWeight:400, color:'var(--border-color)', margin:'0 10px'}}>|</span> 
                     <span className="current-client-badge">{client.name}</span>
+                    <span style={{fontSize: '0.7rem', color:'var(--text-muted)', marginLeft: '10px', fontWeight: 'normal', fontFamily:'monospace'}}>#{client.id}</span>
                 </h1>
                 <button className="btn-save-view" onClick={switchToViewer}>💾 Save & View</button>
             </div>
@@ -349,8 +390,29 @@ const EditorView = ({ switchToViewer }) => {
                                     <option key={pid} value={pid}>{modelData.profiles[pid].name}</option>
                                 ))}
                             </select>
-                            <button className="icon-btn" onClick={addNewProfile}>+</button>
+                            <button className="icon-btn" onClick={addNewProfile} title="Add New Table">+</button>
+                            <button className="icon-btn" onClick={renameProfile} title="Rename Current Table">✎</button>
+                            <button className="icon-btn-danger" onClick={deleteProfile} title="Delete Current Table">🗑</button>
                         </div>
+                    </div>
+
+                    <div className="input-group">
+                        <label>Categories for Rates</label>
+                        <select value={inputs.category} onChange={e => setInputs({...inputs, category: e.target.value})}>
+                            <option value="AIR">AIR</option>
+                            <option value="LAND">LAND</option>
+                            <option value="SEA">SEA</option>
+                        </select>
+                    </div>
+
+                    <div className="input-group">
+                        <label>Charge Code</label>
+                        <select value={inputs.serviceMode} onChange={e => setInputs({...inputs, serviceMode: e.target.value})}>
+                            <option value="DOOR TO DOOR">DOOR TO DOOR</option>
+                            <option value="PORT TO PORT">PORT TO PORT</option>
+                            <option value="DOOR TO PORT">DOOR TO PORT</option>
+                            <option value="PORT TO DOOR">PORT TO DOOR</option>
+                        </select>
                     </div>
 
                     <div className="input-group">
@@ -365,16 +427,6 @@ const EditorView = ({ switchToViewer }) => {
                                 {dests.map(d => <option key={d} value={d}>{d}</option>)}
                             </select>
                         </div>
-                    </div>
-
-                    <div className="input-group">
-                        <label>Service Mode</label>
-                        <select value={inputs.serviceMode} onChange={e => setInputs({...inputs, serviceMode: e.target.value})}>
-                            <option value="DOOR TO DOOR">DOOR TO DOOR</option>
-                            <option value="PORT TO PORT">PORT TO PORT</option>
-                            <option value="DOOR TO PORT">DOOR TO PORT</option>
-                            <option value="PORT TO DOOR">PORT TO DOOR</option>
-                        </select>
                     </div>
 
                     <div className="input-group">
@@ -497,7 +549,7 @@ const EditorView = ({ switchToViewer }) => {
                          </span>
                          <span className="formula-text">
                             {calcResult && !calcResult.error 
-                                ? `${model} | ${inputs.chargeBasis === 'volumetric' ? 'Vol. Wt.' : 'Act. Wt.'} | ${inputs.serviceMode}` 
+                                ? `${inputs.category} | ${model} | ${inputs.serviceMode}` 
                                 : 'Enter details to calculate'}
                          </span>
                     </div>

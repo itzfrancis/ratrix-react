@@ -40,9 +40,12 @@ const Sidebar = ({ setView }) => {
             <div className="client-list">
                 {Object.values(store.clients).map(client => (
                     <div key={client.id} className={`client-item ${client.id === store.activeClientId ? 'active' : ''}`}>
-                        <span className="client-name-area" onClick={() => { setActiveClient(client.id); setView('editor'); }}>
-                            {client.name}
-                        </span>
+                        <div className="client-name-area" onClick={() => { setActiveClient(client.id); setView('editor'); }}>
+                            <div style={{fontWeight: 600}}>{client.name}</div>
+                            <div style={{fontSize: '0.65rem', color:'var(--text-muted)', marginTop: 2, fontFamily: 'monospace'}}>
+                                ID: {client.id}
+                            </div>
+                        </div>
                         <button className="btn-sidebar-view" onClick={(e) => { e.stopPropagation(); setActiveClient(client.id); setView('viewer'); }}>
                             View
                         </button>
