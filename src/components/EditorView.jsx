@@ -4,7 +4,7 @@ import { generateId, createEmptyRow, MODEL_KEYS } from '../utils/helpers';
 import { strategies } from '../utils/calculations';
 import ExcelJS from 'exceljs';
 
-const EditorView = ({ switchToViewer }) => {
+const EditorView = ({ switchToViewer, setIsDirty }) => {
     // Destructure restoreClient from context
     const { getActiveClient, updateClientData, restoreClient } = useData();
     const client = getActiveClient();
@@ -22,8 +22,6 @@ const EditorView = ({ switchToViewer }) => {
     const [isSaving, setIsSaving] = useState(false);
 
     // --- 1. LOCAL DRAFT STATE ---
-    // We hold a local copy of the data. The Viewer/Sidebar won't see changes 
-    // to this until we explicitly "Save".
     const [localStore, setLocalStore] = useState(null);
 
     // Load client data into local draft when client changes
@@ -31,8 +29,10 @@ const EditorView = ({ switchToViewer }) => {
         if (client) {
             // Deep copy to ensure we don't accidentally mutate context by reference
             setLocalStore(JSON.parse(JSON.stringify(client.data_store)));
+            // Reset dirty flag on load
+            if(setIsDirty) setIsDirty(false);
         }
-    }, [client?.id]); // Only re-sync if the client ID changes
+    }, [client?.id]); 
 
     // Refs for hidden file inputs
     const jsonInputRef = useRef(null);
@@ -47,6 +47,7 @@ const EditorView = ({ switchToViewer }) => {
     // Helper to update LOCAL state only
     const updateStore = (newStore) => {
         setLocalStore(newStore);
+        if(setIsDirty) setIsDirty(true);
     };
 
     // --- CALCULATION LOGIC ---
@@ -97,6 +98,8 @@ const EditorView = ({ switchToViewer }) => {
         updateClientData(client.id, localStore);
 
         setIsSaving(true);
+        if(setIsDirty) setIsDirty(false); // Clear dirty flag before transition
+
         // Wait for animation (1.5s) before switching view
         setTimeout(() => {
             switchToViewer();
@@ -201,33 +204,64 @@ const EditorView = ({ switchToViewer }) => {
     // --- IMPORT / EXPORT HANDLERS ---
     const handleExportExcel = async () => {
         if(!activeProfile) return;
+        
+        // Debugging: Check if rows exist in console
+        console.log("Exporting Rows:", activeProfile.rows);
+
         const wb = new ExcelJS.Workbook();
         const ws = wb.addWorksheet("Rates");
         
+        // Define columns
+        const colDefs = [
+            { header: 'Origin', width: 15 },
+            { header: 'Destination', width: 15 }
+        ];
+        
+        activeProfile.limits.forEach((lim, i) => {
+            const prev = i === 0 ? 1 : activeProfile.limits[i-1] + 1;
+            colDefs.push({ header: `${prev}-${lim}`, width: 10 });
+        });
+
+        // 1. Write Metadata Rows
         ws.addRow([`Client: ${client.name}`]);
         ws.addRow([`Table: ${activeProfile.name}`]);
         ws.addRow([`Category: ${inputs.category}`]);
         ws.addRow([`Service Mode: ${inputs.serviceMode}`]);
         ws.addRow([`Export Date: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`]);
-        ws.addRow([]);
+        ws.addRow([]); // Spacer
 
-        const headers = ["Origin", "Destination"];
-        activeProfile.limits.forEach((lim, i) => {
-            const prev = i === 0 ? 1 : activeProfile.limits[i-1] + 1;
-            headers.push(`${prev}-${lim}`);
-        });
-        
-        const headerRow = ws.addRow(headers);
-        headerRow.font = { bold: true };
+        // 2. Write Header Row
+        const headerRow = ws.addRow(colDefs.map(c => c.header));
+        headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
         headerRow.eachCell((cell) => {
             cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4472C4' } };
-            cell.font = { color: { argb: 'FFFFFFFF' }, bold: true };
         });
 
-        activeProfile.rows.forEach(r => {
-            const rowData = [r.origin, r.dest, ...r.rates.map(x => x === null ? "" : x)];
-            ws.addRow(rowData);
+        // 3. Write Data Rows
+        if (activeProfile.rows && activeProfile.rows.length > 0) {
+            activeProfile.rows.forEach(r => {
+                const safeRates = Array.isArray(r.rates) ? r.rates : [];
+                
+                const rowData = [
+                    r.origin || "", 
+                    r.dest || "", 
+                    ...safeRates.map(val => {
+                        return (val === null || val === undefined || val === "") ? "" : Number(val);
+                    })
+                ];
+                
+                const newRow = ws.addRow(rowData);
+                // Force visibility just in case
+                newRow.hidden = false;
+            });
+        }
+
+        // 4. Set Widths manually
+        colDefs.forEach((def, i) => {
+            ws.getColumn(i + 1).width = def.width;
         });
+
+        // REMOVED: ws.views (Freeze Panes) caused rows to hide glitchily in some Excel versions
 
         const buffer = await wb.xlsx.writeBuffer();
         const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });

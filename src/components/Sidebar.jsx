@@ -1,8 +1,8 @@
 import React from 'react';
 import { useData } from '../context/DataContext';
 
-const Sidebar = ({ setView }) => {
-    // Destructure all needed context methods
+// 1. Accept onNavigate prop
+const Sidebar = ({ onNavigate }) => {
     const { store, theme, toggleTheme, setActiveClient, addClient, deleteClient, updateClientMeta, renameClient } = useData();
     const activeClient = store.clients[store.activeClientId];
 
@@ -23,11 +23,18 @@ const Sidebar = ({ setView }) => {
         }
     };
 
-    // New: Handle clearing notes
     const handleClearNotes = () => {
         if (confirm("Are you sure you want to clear these notes?")) {
             updateClientMeta(activeClient.id, 'description', '');
         }
+    };
+
+    // 2. Helper to handle safe navigation
+    const requestClientChange = (clientId, targetView) => {
+        onNavigate(targetView, () => {
+            // This callback only runs if the user says "Yes" to the popup (or if data wasn't dirty)
+            setActiveClient(clientId);
+        });
     };
 
     return (
@@ -46,13 +53,18 @@ const Sidebar = ({ setView }) => {
             <div className="client-list">
                 {Object.values(store.clients).map(client => (
                     <div key={client.id} className={`client-item ${client.id === store.activeClientId ? 'active' : ''}`}>
-                        <div className="client-name-area" onClick={() => { setActiveClient(client.id); setView('editor'); }}>
+                        {/* 3. Update Name Click */}
+                        <div className="client-name-area" onClick={() => requestClientChange(client.id, 'editor')}>
                             <div style={{ fontWeight: 600 }}>{client.name}</div>
                             <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: 2, fontFamily: 'monospace' }}>
                                 ID: {client.id}
                             </div>
                         </div>
-                        <button className="btn-sidebar-view" onClick={(e) => { e.stopPropagation(); setActiveClient(client.id); setView('viewer'); }}>
+                        {/* 4. Update View Button Click */}
+                        <button className="btn-sidebar-view" onClick={(e) => { 
+                            e.stopPropagation(); 
+                            requestClientChange(client.id, 'viewer'); 
+                        }}>
                             View
                         </button>
                     </div>
@@ -65,18 +77,12 @@ const Sidebar = ({ setView }) => {
                 <div className="client-desc-box">
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
                         <span className="desc-label" style={{ margin: 0 }}>Client Notes</span>
-                        {/* Only show clear button if there is text */}
                         {activeClient.description && (
                             <button
                                 onClick={handleClearNotes}
                                 style={{
-                                    background: 'none',
-                                    border: 'none',
-                                    color: 'var(--state-danger-text)',
-                                    cursor: 'pointer',
-                                    fontSize: '0.7rem',
-                                    padding: 0,
-                                    opacity: 0.7
+                                    background: 'none', border: 'none', color: 'var(--state-danger-text)',
+                                    cursor: 'pointer', fontSize: '0.7rem', padding: 0, opacity: 0.7
                                 }}
                                 title="Clear all notes"
                             >
