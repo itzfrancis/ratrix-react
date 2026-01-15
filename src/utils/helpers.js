@@ -13,9 +13,20 @@ export const createEmptyRow = (limitCount) => {
 export const DEFAULT_LIMITS = [50, 100, 150, 500];
 
 export const MODEL_KEYS = [
-    'fixed', 'flat', 'minFixed', 'cumulative',
-    'minCumulative', 'minExcess', 'excess'
+    'fixed', 'minFixed', 'flat', 'cumulative',
+    'minCumulative', 'excess', 'minExcess'
 ];
+
+// NEW: Display Names Mapping
+export const MODEL_LABELS = {
+    fixed: "Fixed Bracket Pricing",
+    minFixed: "Minimum Fixed Bracket Pricing",
+    flat: "Flat Bracket Pricing",
+    cumulative: "Cumulative Bracket Pricing",
+    minCumulative: "Minimum Cumulative Bracket Pricing",
+    excess: "Excess Bracket Pricing",
+    minExcess: "Minimum Excess Bracket Pricing"
+};
 
 export const createFreshClientStore = () => {
     let store = {};

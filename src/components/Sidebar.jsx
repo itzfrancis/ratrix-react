@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useData } from '../context/DataContext';
 
 // --- SVG ICONS ---
@@ -8,10 +8,35 @@ const IconEye = () => (
 const IconXSmall = () => (
     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
 );
+const IconChevronLeft = () => (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+);
+const IconChevronRight = () => (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+);
+const IconMoon = () => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+);
+const IconSun = () => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+);
 
 const Sidebar = ({ onNavigate }) => {
     const { store, theme, toggleTheme, setActiveClient, addClient, deleteClient, updateClientMeta, renameClient } = useData();
     const activeClient = store.clients[store.activeClientId];
+    
+    // New State for sidebar collapse
+    const [isCollapsed, setIsCollapsed] = useState(false);
+
+    // Effect to control global CSS variable for layout resizing
+    useEffect(() => {
+        const root = document.documentElement;
+        if (isCollapsed) {
+            root.style.setProperty('--sidebar-width', '80px');
+        } else {
+            root.style.setProperty('--sidebar-width', '280px');
+        }
+    }, [isCollapsed]);
 
     const handleAdd = () => {
         const name = prompt("Enter Client Name:");
@@ -42,41 +67,88 @@ const Sidebar = ({ onNavigate }) => {
         });
     };
 
+    // Helper to get initials for collapsed view
+    const getInitials = (name) => {
+        return name ? name.substring(0, 2).toUpperCase() : "??";
+    };
+
     return (
-        <aside className="sidebar">
-            <div className="sidebar-header">
-                <h2>Clients</h2>
-                <button className="theme-toggle-btn" onClick={toggleTheme} title="Toggle Theme">
-                    {theme === 'light' ?
-                        <svg className="theme-icon" viewBox="0 0 24 24"><path fill="currentColor" d="M9.528 1.718a.75.75 0 01.162.819A8.97 8.97 0 009 6a9 9 0 009 9 8.97 8.97 0 003.463-.69.75.75 0 01.981.98 10.503 10.503 0 01-9.694 6.46c-5.799 0-10.5-4.701-10.5-10.5 0-4.368 2.667-8.112 6.46-9.694a.75.75 0 01.818.162z" /></svg>
-                        :
-                        <svg className="theme-icon" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2.25a.75.75 0 01.75.75v2.25a.75.75 0 01-1.5 0V3a.75.75 0 01.75-.75zM7.5 12a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0zM18.894 6.166a.75.75 0 00-1.06-1.06l-1.591 1.59a.75.75 0 101.06 1.061l1.591-1.59zM21.75 12a.75.75 0 01-.75.75h-2.25a.75.75 0 010-1.5H21a.75.75 0 01.75.75zM17.834 18.894a.75.75 0 001.06-1.06l-1.59-1.591a.75.75 0 10-1.061 1.06l1.59 1.591zM12 18a.75.75 0 01.75.75V21a.75.75 0 01-1.5 0v-2.25A.75.75 0 0112 18zM7.758 17.303a.75.75 0 00-1.061-1.06l-1.591 1.59a.75.75 0 001.06 1.061l1.591-1.59zM6 12a.75.75 0 01-.75.75H3a.75.75 0 010-1.5h2.25A.75.75 0 016 12zM6.697 7.757a.75.75 0 001.06-1.06l-1.59-1.591a.75.75 0 00-1.061 1.06l1.59 1.591z" /></svg>
-                    }
-                </button>
+        <aside className="sidebar" style={{ 
+            transition: 'width 0.3s ease', 
+            padding: isCollapsed ? '20px 10px' : '20px',
+            alignItems: isCollapsed ? 'center' : 'stretch'
+        }}>
+            {/* HEADER SECTION */}
+            <div className="sidebar-header" style={{ flexDirection: isCollapsed ? 'column' : 'row', gap: isCollapsed ? 15 : 0, justifyContent: isCollapsed ? 'center' : 'space-between' }}>
+                {!isCollapsed && <h2>Clients</h2>}
+                
+                <div style={{display:'flex', gap:5, flexDirection: isCollapsed ? 'column' : 'row'}}>
+                    <button className="theme-toggle-btn" onClick={toggleTheme} title="Toggle Theme">
+                        {theme === 'light' ? <IconMoon /> : <IconSun />}
+                    </button>
+                    
+                    <button className="theme-toggle-btn" onClick={() => setIsCollapsed(!isCollapsed)} title={isCollapsed ? "Expand" : "Collapse"}>
+                        {isCollapsed ? <IconChevronRight /> : <IconChevronLeft />}
+                    </button>
+                </div>
             </div>
 
-            <div className="client-list">
+            {/* CLIENT LIST */}
+            <div className="client-list" style={{ alignItems: isCollapsed ? 'center' : 'stretch' }}>
                 {Object.values(store.clients).map(client => (
-                    <div key={client.id} className={`client-item ${client.id === store.activeClientId ? 'active' : ''}`}>
-                        <div className="client-name-area" onClick={() => requestClientChange(client.id, 'editor')}>
-                            <div style={{ fontWeight: 600 }}>{client.name}</div>
-                            <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: 2, fontFamily: 'monospace' }}>
-                                ID: {client.id}
+                    <div 
+                        key={client.id} 
+                        className={`client-item ${client.id === store.activeClientId ? 'active' : ''}`}
+                        style={{ 
+                            justifyContent: isCollapsed ? 'center' : 'space-between',
+                            padding: isCollapsed ? '10px 0' : '10px',
+                            height: isCollapsed ? '50px' : 'auto',
+                            width: isCollapsed ? '50px' : 'auto',
+                            borderRadius: isCollapsed ? '12px' : '8px'
+                        }}
+                    >
+                        {isCollapsed ? (
+                            // COLLAPSED VIEW: Initials Circle
+                            <div 
+                                onClick={() => requestClientChange(client.id, 'editor')}
+                                title={client.name}
+                                style={{
+                                    fontWeight: 700, fontSize: '0.9rem', 
+                                    cursor: 'pointer', width:'100%', height:'100%',
+                                    display:'flex', alignItems:'center', justifyContent:'center',
+                                    color: client.id === store.activeClientId ? 'var(--brand-primary)' : 'var(--text-muted)'
+                                }}
+                            >
+                                {getInitials(client.name)}
                             </div>
-                        </div>
-                        <button className="btn-sidebar-view" onClick={(e) => {
-                            e.stopPropagation();
-                            requestClientChange(client.id, 'viewer');
-                        }} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                            <IconEye /> View
-                        </button>
+                        ) : (
+                            // EXPANDED VIEW: Full Details
+                            <>
+                                <div className="client-name-area" onClick={() => requestClientChange(client.id, 'editor')}>
+                                    <div style={{ fontWeight: 600 }}>{client.name}</div>
+                                    <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: 2, fontFamily: 'monospace' }}>
+                                        ID: {client.id}
+                                    </div>
+                                </div>
+                                <button className="btn-sidebar-view" onClick={(e) => { 
+                                    e.stopPropagation(); 
+                                    requestClientChange(client.id, 'viewer'); 
+                                }} style={{display:'flex', alignItems:'center', gap:4}}>
+                                    <IconEye /> View
+                                </button>
+                            </>
+                        )}
                     </div>
                 ))}
             </div>
 
-            <button className="btn-add-client" onClick={handleAdd}>+ Add New Client</button>
+            {/* ADD BUTTON */}
+            <button className="btn-add-client" onClick={handleAdd} title="Add New Client">
+                {isCollapsed ? "+" : "+ Add New Client"}
+            </button>
 
-            {activeClient && (
+            {/* NOTES SECTION (Only visible when Expanded) */}
+            {!isCollapsed && activeClient && (
                 <div className="client-desc-box">
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
                         <span className="desc-label" style={{ margin: 0 }}>Client Notes</span>

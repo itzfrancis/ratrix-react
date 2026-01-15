@@ -1,6 +1,6 @@
 import React from 'react';
 import { useData } from '../context/DataContext';
-import { MODEL_KEYS } from '../utils/helpers';
+import { MODEL_KEYS, MODEL_LABELS } from '../utils/helpers';
 
 // --- SVG ICONS ---
 const IconArrowLeft = () => (
@@ -37,7 +37,7 @@ const ViewerView = ({ backToEditor }) => {
                         <div key={model} className="model-section">
                             {profiles.map(profile => (
                                 <div key={profile.name} className="ro-table-card">
-                                    <div className="ro-table-title"><IconFile /> {profile.name} ({model})</div>
+                                    <div className="ro-table-title"><IconFile /> {profile.name} ({MODEL_LABELS[model]})</div>
                                     <div className="ro-table-wrapper">
                                         <table className="ro-table">
                                             <thead>
