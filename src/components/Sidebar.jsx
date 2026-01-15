@@ -1,7 +1,14 @@
 import React from 'react';
 import { useData } from '../context/DataContext';
 
-// 1. Accept onNavigate prop
+// --- SVG ICONS ---
+const IconEye = () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+);
+const IconXSmall = () => (
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+);
+
 const Sidebar = ({ onNavigate }) => {
     const { store, theme, toggleTheme, setActiveClient, addClient, deleteClient, updateClientMeta, renameClient } = useData();
     const activeClient = store.clients[store.activeClientId];
@@ -29,10 +36,8 @@ const Sidebar = ({ onNavigate }) => {
         }
     };
 
-    // 2. Helper to handle safe navigation
     const requestClientChange = (clientId, targetView) => {
         onNavigate(targetView, () => {
-            // This callback only runs if the user says "Yes" to the popup (or if data wasn't dirty)
             setActiveClient(clientId);
         });
     };
@@ -53,19 +58,17 @@ const Sidebar = ({ onNavigate }) => {
             <div className="client-list">
                 {Object.values(store.clients).map(client => (
                     <div key={client.id} className={`client-item ${client.id === store.activeClientId ? 'active' : ''}`}>
-                        {/* 3. Update Name Click */}
                         <div className="client-name-area" onClick={() => requestClientChange(client.id, 'editor')}>
                             <div style={{ fontWeight: 600 }}>{client.name}</div>
                             <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: 2, fontFamily: 'monospace' }}>
                                 ID: {client.id}
                             </div>
                         </div>
-                        {/* 4. Update View Button Click */}
                         <button className="btn-sidebar-view" onClick={(e) => { 
                             e.stopPropagation(); 
                             requestClientChange(client.id, 'viewer'); 
-                        }}>
-                            View
+                        }} style={{display:'flex', alignItems:'center', gap:4}}>
+                            <IconEye /> View
                         </button>
                     </div>
                 ))}
@@ -82,11 +85,12 @@ const Sidebar = ({ onNavigate }) => {
                                 onClick={handleClearNotes}
                                 style={{
                                     background: 'none', border: 'none', color: 'var(--state-danger-text)',
-                                    cursor: 'pointer', fontSize: '0.7rem', padding: 0, opacity: 0.7
+                                    cursor: 'pointer', fontSize: '0.7rem', padding: 0, opacity: 0.7,
+                                    display: 'flex', alignItems: 'center', gap: 3
                                 }}
                                 title="Clear all notes"
                             >
-                                ✕ Clear
+                                <IconXSmall /> Clear
                             </button>
                         )}
                     </div>

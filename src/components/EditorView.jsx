@@ -4,8 +4,39 @@ import { generateId, createEmptyRow, MODEL_KEYS } from '../utils/helpers';
 import { strategies } from '../utils/calculations';
 import ExcelJS from 'exceljs';
 
+// --- SVG ICONS DEFINITIONS ---
+const IconPlaneFilled = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/></svg>
+);
+const IconTruck = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4zM6 18.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm13.5-9l1.96 2.5H17V9.5h2.5zm-1.5 9c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>
+);
+const IconShip = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M20 21c-1.39 0-2.78-.47-4-1.32-2.44 1.71-5.56 1.71-8 0C6.78 20.53 5.39 21 4 21H2v2h2c1.38 0 2.74-.35 4-.99 2.52 1.29 5.48 1.29 8 0 1.26.65 2.62.99 4 .99h2v-2h-2zM12 6c-1.83 0-3.48.96-4.34 2.52l4.34 2.17 4.34-2.17C15.48 6.96 13.83 6 12 6zm-2.4 5.37l-4.2 2.1C3.89 14.28 5.3 16 7.5 16h9c2.2 0 3.61-1.72 2.1-2.53l-4.2-2.1-2.4 1.2-2.4-1.2z"/></svg>
+);
+const IconSave = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+);
+const IconX = ({ size = 14 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+);
+const IconFolder = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+);
+const IconUpload = () => (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+);
+const IconPlus = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+);
+const IconEdit = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+);
+const IconTrash = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+);
+
 const EditorView = ({ switchToViewer, setIsDirty }) => {
-    // Destructure restoreClient from context
     const { getActiveClient, updateClientData, restoreClient } = useData();
     const client = getActiveClient();
     
@@ -21,30 +52,24 @@ const EditorView = ({ switchToViewer, setIsDirty }) => {
     const [calcResult, setCalcResult] = useState(null);
     const [isSaving, setIsSaving] = useState(false);
 
-    // --- 1. LOCAL DRAFT STATE ---
+    // --- LOCAL DRAFT STATE ---
     const [localStore, setLocalStore] = useState(null);
 
-    // Load client data into local draft when client changes
     useEffect(() => {
         if (client) {
-            // Deep copy to ensure we don't accidentally mutate context by reference
             setLocalStore(JSON.parse(JSON.stringify(client.data_store)));
-            // Reset dirty flag on load
             if(setIsDirty) setIsDirty(false);
         }
     }, [client?.id]); 
 
-    // Refs for hidden file inputs
     const jsonInputRef = useRef(null);
     const excelInputRef = useRef(null);
 
-    // Derived State helpers (READ FROM LOCAL STORE NOW)
     const dataStore = localStore; 
     const modelData = dataStore ? dataStore[model] : null;
     const activeProfileId = modelData ? modelData.activeId : null;
     const activeProfile = (modelData && activeProfileId) ? modelData.profiles[activeProfileId] : null;
 
-    // Helper to update LOCAL state only
     const updateStore = (newStore) => {
         setLocalStore(newStore);
         if(setIsDirty) setIsDirty(true);
@@ -92,15 +117,12 @@ const EditorView = ({ switchToViewer, setIsDirty }) => {
         setCalcResult(result);
     };
 
-    // --- 2. SAVE TRANSITION HANDLER (THE COMMIT) ---
+    // --- SAVE TRANSITION HANDLER ---
     const handleSaveTransition = () => {
-        // COMMIT: This is the only time we push localStore to the Global Context
         updateClientData(client.id, localStore);
-
         setIsSaving(true);
-        if(setIsDirty) setIsDirty(false); // Clear dirty flag before transition
+        if(setIsDirty) setIsDirty(false); 
 
-        // Wait for animation (1.5s) before switching view
         setTimeout(() => {
             switchToViewer();
         }, 1500);
@@ -204,14 +226,9 @@ const EditorView = ({ switchToViewer, setIsDirty }) => {
     // --- IMPORT / EXPORT HANDLERS ---
     const handleExportExcel = async () => {
         if(!activeProfile) return;
-        
-        // Debugging: Check if rows exist in console
-        console.log("Exporting Rows:", activeProfile.rows);
-
         const wb = new ExcelJS.Workbook();
         const ws = wb.addWorksheet("Rates");
         
-        // Define columns
         const colDefs = [
             { header: 'Origin', width: 15 },
             { header: 'Destination', width: 15 }
@@ -222,26 +239,22 @@ const EditorView = ({ switchToViewer, setIsDirty }) => {
             colDefs.push({ header: `${prev}-${lim}`, width: 10 });
         });
 
-        // 1. Write Metadata Rows
         ws.addRow([`Client: ${client.name}`]);
         ws.addRow([`Table: ${activeProfile.name}`]);
         ws.addRow([`Category: ${inputs.category}`]);
         ws.addRow([`Service Mode: ${inputs.serviceMode}`]);
         ws.addRow([`Export Date: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`]);
-        ws.addRow([]); // Spacer
+        ws.addRow([]); 
 
-        // 2. Write Header Row
         const headerRow = ws.addRow(colDefs.map(c => c.header));
         headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
         headerRow.eachCell((cell) => {
             cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4472C4' } };
         });
 
-        // 3. Write Data Rows
         if (activeProfile.rows && activeProfile.rows.length > 0) {
             activeProfile.rows.forEach(r => {
                 const safeRates = Array.isArray(r.rates) ? r.rates : [];
-                
                 const rowData = [
                     r.origin || "", 
                     r.dest || "", 
@@ -249,20 +262,16 @@ const EditorView = ({ switchToViewer, setIsDirty }) => {
                         return (val === null || val === undefined || val === "") ? "" : Number(val);
                     })
                 ];
-                
                 const newRow = ws.addRow(rowData);
-                // Force visibility just in case
+                // EXPLICITLY UNHIDE ROWS to fix Excel glitch
                 newRow.hidden = false;
             });
         }
 
-        // 4. Set Widths manually
         colDefs.forEach((def, i) => {
             ws.getColumn(i + 1).width = def.width;
         });
-
-        // REMOVED: ws.views (Freeze Panes) caused rows to hide glitchily in some Excel versions
-
+        
         const buffer = await wb.xlsx.writeBuffer();
         const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
         const a = document.createElement('a');
@@ -392,7 +401,6 @@ const EditorView = ({ switchToViewer, setIsDirty }) => {
         e.target.value = '';
     };
 
-    // If localStore hasn't loaded yet
     if (!client || !localStore || !activeProfile) return <div>Loading...</div>;
 
     const origins = [...new Set(activeProfile.rows.map(r => r.origin).filter(Boolean))];
@@ -400,7 +408,6 @@ const EditorView = ({ switchToViewer, setIsDirty }) => {
 
     return (
         <div className="calculator-container">
-            {/* 3. FULL SCREEN ANIMATION OVERLAY */}
             {isSaving && (
                 <div className="save-animation-overlay">
                     <div className="shockwave-ring"></div>
@@ -413,8 +420,10 @@ const EditorView = ({ switchToViewer, setIsDirty }) => {
                     <span className="current-client-badge">{client.name}</span>
                     <span style={{fontSize: '0.7rem', color:'var(--text-muted)', marginLeft: '10px', fontWeight: 'normal', fontFamily:'monospace'}}>#{client.id}</span>
                 </h1>
-                {/* 4. Trigger Animation on click */}
-                <button className="btn-save-view" onClick={handleSaveTransition}>💾 Save & View</button>
+                <button className="btn-save-view" onClick={handleSaveTransition} style={{display:'flex', alignItems:'center', gap:8}}>
+                    <IconSave /> 
+                    <span>Save & View</span>
+                </button>
             </div>
 
             <div className="content-grid">
@@ -428,19 +437,56 @@ const EditorView = ({ switchToViewer, setIsDirty }) => {
 
                     <div className="input-group" style={{paddingTop: 10, borderTop: '1px dashed var(--border-color)'}}>
                         <label>Saved Table</label>
-                        <div style={{display:'flex', gap:6}}>
-                            <select style={{flex:1}} value={activeProfileId} onChange={(e) => {
+                        {/* --- COMPACT ICON LAYOUT WITH FLEXBOX --- */}
+                        <div style={{display:'flex', gap: '8px', width: '100%', alignItems:'center'}}>
+                            {/* Dropdown takes most of the space (flex: 1) */}
+                            <select value={activeProfileId} onChange={(e) => {
                                 const newData = JSON.parse(JSON.stringify(dataStore));
                                 newData[model].activeId = e.target.value;
                                 updateStore(newData);
-                            }}>
+                            }} style={{flex: 1, minWidth: 0, height: '35px'}}>
                                 {Object.keys(modelData.profiles).map(pid => (
                                     <option key={pid} value={pid}>{modelData.profiles[pid].name}</option>
                                 ))}
                             </select>
-                            <button className="icon-btn" onClick={addNewProfile} title="Add New Table">+</button>
-                            <button className="icon-btn" onClick={renameProfile} title="Rename Current Table">✎</button>
-                            <button className="icon-btn-danger" onClick={deleteProfile} title="Delete Current Table">🗑</button>
+                            
+                            {/* Icon Buttons have fixed dimensions */}
+                            <button 
+                                onClick={addNewProfile} 
+                                title="Add New Table"
+                                style={{
+                                    width: '35px', height: '35px', cursor:'pointer', 
+                                    background:'var(--bg-container)', border:'1px solid var(--brand-primary)', 
+                                    color:'var(--brand-primary)', borderRadius:'6px', 
+                                    display:'flex', alignItems:'center', justifyContent:'center', padding:0
+                                }}
+                            >
+                                <IconPlus />
+                            </button>
+                            <button 
+                                onClick={renameProfile} 
+                                title="Rename Current Table"
+                                style={{
+                                    width: '35px', height: '35px', cursor:'pointer', 
+                                    background:'var(--bg-container)', border:'1px solid var(--text-muted)', 
+                                    color:'var(--text-muted)', borderRadius:'6px', 
+                                    display:'flex', alignItems:'center', justifyContent:'center', padding:0
+                                }}
+                            >
+                                <IconEdit />
+                            </button>
+                            <button 
+                                onClick={deleteProfile} 
+                                title="Delete Current Table"
+                                style={{
+                                    width: '35px', height: '35px', cursor:'pointer', 
+                                    background:'var(--bg-container)', border:'1px solid var(--state-danger-text)', 
+                                    color:'var(--state-danger-text)', borderRadius:'6px', 
+                                    display:'flex', alignItems:'center', justifyContent:'center', padding:0
+                                }}
+                            >
+                                <IconTrash />
+                            </button>
                         </div>
                     </div>
 
@@ -451,19 +497,19 @@ const EditorView = ({ switchToViewer, setIsDirty }) => {
                                 className={`category-btn air ${inputs.category === 'AIR' ? 'active' : ''}`}
                                 onClick={() => setInputs({...inputs, category: 'AIR'})}
                             >
-                                <span className="icon">✈️</span> Air
+                                <span className="icon"><IconPlaneFilled /></span> Air
                             </button>
                             <button 
                                 className={`category-btn land ${inputs.category === 'LAND' ? 'active' : ''}`}
                                 onClick={() => setInputs({...inputs, category: 'LAND'})}
                             >
-                                <span className="icon">🚛</span> Land
+                                <span className="icon"><IconTruck /></span> Land
                             </button>
                             <button 
                                 className={`category-btn sea ${inputs.category === 'SEA' ? 'active' : ''}`}
                                 onClick={() => setInputs({...inputs, category: 'SEA'})}
                             >
-                                <span className="icon">🚢</span> Sea
+                                <span className="icon"><IconShip /></span> Sea
                             </button>
                         </div>
                     </div>
@@ -534,7 +580,7 @@ const EditorView = ({ switchToViewer, setIsDirty }) => {
                                         return (
                                             <th key={i}>
                                                  <div className="col-header-container">
-                                                    <button className="btn-col-delete" onClick={() => deleteColumn(i)}>✕</button>
+                                                    <button className="btn-col-delete" onClick={() => deleteColumn(i)}><IconX size={10} /></button>
                                                     <div className="range-wrapper">
                                                         <span>{prev}-</span>
                                                         <input type="number" className="header-input" value={lim} onChange={(e) => handleLimitChange(i, e.target.value)} />
@@ -565,7 +611,7 @@ const EditorView = ({ switchToViewer, setIsDirty }) => {
                                             </td>
                                         ))}
                                         <td>
-                                            <button className="btn-delete" onClick={() => deleteRow(rIdx)}>✕</button>
+                                            <button className="btn-delete" onClick={() => deleteRow(rIdx)}><IconX size={12}/></button>
                                         </td>
                                     </tr>
                                 ))}
@@ -586,15 +632,15 @@ const EditorView = ({ switchToViewer, setIsDirty }) => {
                     <div style={{marginBottom: 20, borderTop: '1px dashed var(--border-color)', paddingTop: 15, display:'flex', gap:10}}>
                         <div style={{flex:1}}>
                              <input type="file" accept=".xlsx" ref={excelInputRef} style={{display:'none'}} onChange={handleImportExcel} />
-                             <button className="btn-import" style={{background:'var(--bg-container)', border:'1px solid var(--brand-primary)', color:'var(--brand-primary)'}}
+                             <button className="btn-import" style={{background:'var(--bg-container)', border:'1px solid var(--brand-primary)', color:'var(--brand-primary)', display:'flex', alignItems:'center', justifyContent:'center', gap:8}}
                                 onClick={() => excelInputRef.current.click()}>
-                                Import Excel Rates
+                                <IconUpload /> Import Excel Rates
                              </button>
                         </div>
                         <div style={{flex:1}}>
                              <input type="file" accept=".json" ref={jsonInputRef} style={{display:'none'}} onChange={handleRestoreJson} />
-                             <button className="btn-import" onClick={() => jsonInputRef.current.click()}>
-                                📂 Restore Client Backup
+                             <button className="btn-import" onClick={() => jsonInputRef.current.click()} style={{display:'flex', alignItems:'center', justifyContent:'center', gap:8}}>
+                                <IconFolder /> Restore Client Backup
                              </button>
                         </div>
                     </div>
