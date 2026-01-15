@@ -436,7 +436,7 @@ const EditorView = ({ switchToViewer, setIsDirty }) => {
                     </div>
 
                     <div className="input-group" style={{paddingTop: 10, borderTop: '1px dashed var(--border-color)'}}>
-                        <label>Saved Table</label>
+                        <label>Charge Code</label>
                         <div style={{display:'flex', gap: '8px', width: '100%', alignItems:'center'}}>
                             <select value={activeProfileId} onChange={(e) => {
                                 const newData = JSON.parse(JSON.stringify(dataStore));
