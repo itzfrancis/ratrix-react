@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useData } from '../context/DataContext';
 import { generateId, createEmptyRow, MODEL_KEYS } from '../utils/helpers';
 import { strategies } from '../utils/calculations';
@@ -19,22 +19,34 @@ const EditorView = ({ switchToViewer }) => {
         weight: '', chargeBasis: 'actual'
     });
     const [calcResult, setCalcResult] = useState(null);
-    
-    // 1. ANIMATION STATE
     const [isSaving, setIsSaving] = useState(false);
+
+    // --- 1. LOCAL DRAFT STATE ---
+    // We hold a local copy of the data. The Viewer/Sidebar won't see changes 
+    // to this until we explicitly "Save".
+    const [localStore, setLocalStore] = useState(null);
+
+    // Load client data into local draft when client changes
+    useEffect(() => {
+        if (client) {
+            // Deep copy to ensure we don't accidentally mutate context by reference
+            setLocalStore(JSON.parse(JSON.stringify(client.data_store)));
+        }
+    }, [client?.id]); // Only re-sync if the client ID changes
 
     // Refs for hidden file inputs
     const jsonInputRef = useRef(null);
     const excelInputRef = useRef(null);
 
-    // Derived State helpers
-    const dataStore = client ? client.data_store : null;
+    // Derived State helpers (READ FROM LOCAL STORE NOW)
+    const dataStore = localStore; 
     const modelData = dataStore ? dataStore[model] : null;
     const activeProfileId = modelData ? modelData.activeId : null;
     const activeProfile = (modelData && activeProfileId) ? modelData.profiles[activeProfileId] : null;
 
+    // Helper to update LOCAL state only
     const updateStore = (newStore) => {
-        updateClientData(client.id, newStore);
+        setLocalStore(newStore);
     };
 
     // --- CALCULATION LOGIC ---
@@ -79,13 +91,15 @@ const EditorView = ({ switchToViewer }) => {
         setCalcResult(result);
     };
 
-    // --- 2. SAVE TRANSITION HANDLER ---
+    // --- 2. SAVE TRANSITION HANDLER (THE COMMIT) ---
     const handleSaveTransition = () => {
+        // COMMIT: This is the only time we push localStore to the Global Context
+        updateClientData(client.id, localStore);
+
         setIsSaving(true);
         // Wait for animation (1.5s) before switching view
         setTimeout(() => {
             switchToViewer();
-            // We don't need to set isSaving(false) because this component unmounts/hides
         }, 1500);
     };
 
@@ -344,7 +358,8 @@ const EditorView = ({ switchToViewer }) => {
         e.target.value = '';
     };
 
-    if (!client || !activeProfile) return <div>Loading...</div>;
+    // If localStore hasn't loaded yet
+    if (!client || !localStore || !activeProfile) return <div>Loading...</div>;
 
     const origins = [...new Set(activeProfile.rows.map(r => r.origin).filter(Boolean))];
     const dests = [...new Set(activeProfile.rows.map(r => r.dest).filter(Boolean))];
@@ -490,7 +505,7 @@ const EditorView = ({ switchToViewer }) => {
                                                         <span>{prev}-</span>
                                                         <input type="number" className="header-input" value={lim} onChange={(e) => handleLimitChange(i, e.target.value)} />
                                                     </div>
-                                                </div>
+                                                 </div>
                                             </th>
                                         );
                                     })}

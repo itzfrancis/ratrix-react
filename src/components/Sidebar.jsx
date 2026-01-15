@@ -2,7 +2,7 @@ import React from 'react';
 import { useData } from '../context/DataContext';
 
 const Sidebar = ({ setView }) => {
-    // 1. Destructure renameClient here
+    // Destructure all needed context methods
     const { store, theme, toggleTheme, setActiveClient, addClient, deleteClient, updateClientMeta, renameClient } = useData();
     const activeClient = store.clients[store.activeClientId];
 
@@ -16,11 +16,17 @@ const Sidebar = ({ setView }) => {
         if (confirm(`Delete ${activeClient.name}?`)) deleteClient(activeClient.id);
     };
 
-    // 2. Add Handle Rename Logic
     const handleRename = () => {
         const newName = prompt("Enter new name for this client:", activeClient.name);
         if (newName && newName.trim() !== "") {
             renameClient(activeClient.id, newName);
+        }
+    };
+
+    // New: Handle clearing notes
+    const handleClearNotes = () => {
+        if (confirm("Are you sure you want to clear these notes?")) {
+            updateClientMeta(activeClient.id, 'description', '');
         }
     };
 
@@ -57,7 +63,28 @@ const Sidebar = ({ setView }) => {
 
             {activeClient && (
                 <div className="client-desc-box">
-                    <span className="desc-label">Client Notes</span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
+                        <span className="desc-label" style={{ margin: 0 }}>Client Notes</span>
+                        {/* Only show clear button if there is text */}
+                        {activeClient.description && (
+                            <button
+                                onClick={handleClearNotes}
+                                style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    color: 'var(--state-danger-text)',
+                                    cursor: 'pointer',
+                                    fontSize: '0.7rem',
+                                    padding: 0,
+                                    opacity: 0.7
+                                }}
+                                title="Clear all notes"
+                            >
+                                ✕ Clear
+                            </button>
+                        )}
+                    </div>
+
                     <textarea
                         className="desc-input"
                         value={activeClient.description || ""}
@@ -65,7 +92,6 @@ const Sidebar = ({ setView }) => {
                         placeholder="Add description/notes for this client..."
                     />
 
-                    {/* 3. Added Action Buttons Row */}
                     <div style={{ marginTop: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <button
                             onClick={handleRename}
