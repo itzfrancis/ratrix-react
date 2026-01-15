@@ -27,19 +27,19 @@ function AppContent() {
   return (
     <div className="app-wrapper">
       {/* 3. Pass handleNavigation to Sidebar instead of raw setView */}
-      <Sidebar 
-        onNavigate={handleNavigation} 
+      <Sidebar
+        onNavigate={handleNavigation}
         currentView={view}
       />
       <main className="main-content">
         {view === 'editor' ? (
           <div className="view-section active-view">
             {/* 4. Pass setIsDirty to EditorView so it can report changes */}
-            <EditorView 
+            <EditorView
               switchToViewer={() => {
                 setIsDirty(false); // Explicit save doesn't need a warning
                 setView('viewer');
-              }} 
+              }}
               setIsDirty={setIsDirty}
             />
           </div>

@@ -64,10 +64,10 @@ const Sidebar = ({ onNavigate }) => {
                                 ID: {client.id}
                             </div>
                         </div>
-                        <button className="btn-sidebar-view" onClick={(e) => { 
-                            e.stopPropagation(); 
-                            requestClientChange(client.id, 'viewer'); 
-                        }} style={{display:'flex', alignItems:'center', gap:4}}>
+                        <button className="btn-sidebar-view" onClick={(e) => {
+                            e.stopPropagation();
+                            requestClientChange(client.id, 'viewer');
+                        }} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                             <IconEye /> View
                         </button>
                     </div>
