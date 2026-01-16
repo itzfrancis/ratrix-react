@@ -58,18 +58,21 @@ body {
     overflow: hidden;
 }
 
-/* REACT SPECIFIC FIX: Ensure the root div takes full height */
 #root {
     height: 100%;
     width: 100%;
     display: flex;
 }
 
+/* --- LAYOUT ANIMATION CORE --- */
 .app-wrapper {
     display: grid;
+    /* The variable --sidebar-width is toggled in JS, this transition animates it */
     grid-template-columns: var(--sidebar-width) 1fr;
     width: 100%;
     height: 100%;
+    /* Smooth cubic-bezier for a "slide" effect */
+    transition: grid-template-columns 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
 /* --- SIDEBAR STYLES --- */
@@ -79,8 +82,11 @@ body {
     display: flex;
     flex-direction: column;
     padding: 20px;
+    /* Hides content that might spill during the width transition */
+    overflow-x: hidden;
     overflow-y: auto;
     z-index: 100;
+    transition: padding 0.3s ease;
 }
 
 .sidebar-header {
@@ -96,6 +102,7 @@ body {
     margin: 0;
     font-size: 1.2rem;
     color: var(--brand-primary);
+    white-space: nowrap; 
 }
 
 .client-list {
@@ -115,6 +122,8 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    white-space: nowrap;
+    overflow: hidden;
 }
 
 .client-item:hover {
@@ -127,6 +136,17 @@ body {
     border-left: 4px solid var(--active-item-border);
 }
 
+/* Sidebar Animations */
+@keyframes fadeInSlide {
+    from { opacity: 0; transform: translateX(-5px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+.client-item > div, 
+.client-item > .client-name-area {
+    animation: fadeInSlide 0.3s ease-out forwards;
+}
+
 .client-name-area {
     flex: 1;
     cursor: pointer;
@@ -134,7 +154,6 @@ body {
     font-size: 0.9rem;
 }
 
-/* Sidebar View Button */
 .btn-sidebar-view {
     background: transparent;
     border: 1px solid var(--border-color);
@@ -162,6 +181,8 @@ body {
     border-radius: 6px;
     font-weight: 600;
     cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
 }
 
 .btn-add-client:hover {
@@ -172,6 +193,7 @@ body {
     margin-top: 20px;
     padding-top: 15px;
     border-top: 1px solid var(--border-color);
+    animation: fadeInSlide 0.3s ease-out forwards;
 }
 
 .desc-label {
@@ -216,18 +238,11 @@ body {
 }
 
 @keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(5px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
-/* EDITOR STYLES */
+/* --- EDITOR STYLES --- */
 .calculator-container {
     width: 100%;
     max-width: 1400px;
@@ -280,12 +295,6 @@ body {
     justify-content: center;
 }
 
-.theme-icon {
-    width: 18px;
-    height: 18px;
-    fill: currentColor;
-}
-
 .content-grid {
     display: grid;
     grid-template-columns: 300px 1fr;
@@ -334,7 +343,6 @@ body {
 .category-btn {
     flex: 1;
     padding: 10px;
-    /* Increased padding */
     border: 1px solid var(--border-color);
     background: var(--bg-input);
     color: var(--text-muted);
@@ -361,13 +369,11 @@ body {
     color: white;
     border-color: var(--brand-primary);
     box-shadow: 0 4px 10px rgba(0, 194, 160, 0.3);
-    /* Added glow */
     transform: translateY(-1px);
 }
 
 .category-btn .icon {
     font-size: 1.2rem;
-    /* Larger icons */
     display: inline-block;
 }
 
@@ -377,18 +383,9 @@ body {
 }
 
 @keyframes fly-bold {
-    0% {
-        transform: translateY(0) translateX(0) rotate(0deg);
-    }
-
-    50% {
-        transform: translateY(-6px) translateX(3px) rotate(-15deg);
-    }
-
-    /* Nose up, banking left */
-    100% {
-        transform: translateY(0) translateX(0) rotate(0deg);
-    }
+    0% { transform: translateY(0) translateX(0) rotate(0deg); }
+    50% { transform: translateY(-6px) translateX(3px) rotate(-15deg); }
+    100% { transform: translateY(0) translateX(0) rotate(0deg); }
 }
 
 /* 2. LAND ANIMATION: Engine rumble + suspension bounce */
@@ -397,27 +394,11 @@ body {
 }
 
 @keyframes drive-bold {
-    0% {
-        transform: translateY(0) translateX(-1px);
-    }
-
-    25% {
-        transform: translateY(-1px) translateX(0);
-    }
-
-    /* Bump up */
-    50% {
-        transform: translateY(0) translateX(1px);
-    }
-
-    75% {
-        transform: translateY(1px) translateX(0);
-    }
-
-    /* Bump down */
-    100% {
-        transform: translateY(0) translateX(-1px);
-    }
+    0% { transform: translateY(0) translateX(-1px); }
+    25% { transform: translateY(-1px) translateX(0); }
+    50% { transform: translateY(0) translateX(1px); }
+    75% { transform: translateY(1px) translateX(0); }
+    100% { transform: translateY(0) translateX(-1px); }
 }
 
 /* 3. SEA ANIMATION: Deep wave rocking */
@@ -426,23 +407,10 @@ body {
 }
 
 @keyframes float-bold {
-    0% {
-        transform: rotate(0deg) translateY(0);
-    }
-
-    25% {
-        transform: rotate(-10deg) translateY(2px);
-    }
-
-    /* Roll Left */
-    75% {
-        transform: rotate(10deg) translateY(-2px);
-    }
-
-    /* Roll Right */
-    100% {
-        transform: rotate(0deg) translateY(0);
-    }
+    0% { transform: rotate(0deg) translateY(0); }
+    25% { transform: rotate(-10deg) translateY(2px); }
+    75% { transform: rotate(10deg) translateY(-2px); }
+    100% { transform: rotate(0deg) translateY(0); }
 }
 
 
@@ -752,7 +720,7 @@ body {
     background: var(--brand-hover);
 }
 
-/* --- READ ONLY VIEWER STYLES --- */
+/* --- VIEWER STYLES --- */
 .viewer-header {
     background: var(--bg-container);
     padding: 20px;
@@ -770,48 +738,20 @@ body {
     border-radius: 12px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
     min-height: 80vh;
+    display: flex;
+    flex-direction: column;
 }
 
 .viewer-content {
     padding: 30px;
-}
-
-.model-section {
-    margin-bottom: 40px;
-    background: var(--bg-container);
-    padding: 20px;
-    border-radius: 8px;
-    border: 1px solid var(--border-color);
-}
-
-.model-title {
-    font-size: 1.1rem;
-    font-weight: 700;
-    color: var(--brand-primary);
-    margin-bottom: 15px;
-    padding-bottom: 10px;
-    border-bottom: 2px solid var(--border-color);
-    text-transform: uppercase;
-}
-
-.ro-table-card {
-    margin-bottom: 25px;
-}
-
-.ro-table-title {
-    font-size: 0.95rem;
-    font-weight: 600;
-    margin-bottom: 10px;
-    color: var(--text-main);
-    display: flex;
-    align-items: center;
-    gap: 8px;
+    flex: 1;
 }
 
 .ro-table-wrapper {
     overflow-x: auto;
     border: 1px solid var(--border-color);
     border-radius: 6px;
+    background: var(--bg-container);
 }
 
 .ro-table {
@@ -823,13 +763,14 @@ body {
 .ro-table th {
     background: var(--bg-secondary);
     color: var(--text-muted);
-    padding: 8px;
+    padding: 12px;
     border-bottom: 1px solid var(--border-color);
     text-align: center;
+    font-weight: 700;
 }
 
 .ro-table td {
-    padding: 8px;
+    padding: 10px;
     border-bottom: 1px solid var(--border-color);
     text-align: center;
     color: var(--text-main);
@@ -923,65 +864,91 @@ body {
 }
 
 @keyframes fadeOverlay {
-    0% {
-        opacity: 0;
-    }
-
-    10% {
-        opacity: 1;
-    }
-
-    80% {
-        opacity: 1;
-    }
-
-    100% {
-        opacity: 0;
-    }
+    0% { opacity: 0; }
+    10% { opacity: 1; }
+    80% { opacity: 1; }
+    100% { opacity: 0; }
 }
 
 @keyframes stampSlam {
-    0% {
-        transform: scale(3);
-        opacity: 0;
-    }
-
-    50% {
-        transform: scale(0.9);
-        opacity: 1;
-    }
-
-    70% {
-        transform: scale(1.1);
-    }
-
-    100% {
-        transform: scale(1) rotate(-5deg);
-        opacity: 1;
-    }
+    0% { transform: scale(3); opacity: 0; }
+    50% { transform: scale(0.9); opacity: 1; }
+    70% { transform: scale(1.1); }
+    100% { transform: scale(1) rotate(-5deg); opacity: 1; }
 }
 
 @keyframes ripple {
-    0% {
-        width: 0;
-        height: 0;
-        opacity: 1;
-        border-width: 50px;
-    }
+    0% { width: 0; height: 0; opacity: 1; border-width: 50px; }
+    100% { width: 150vw; height: 150vw; opacity: 0; border-width: 0px; }
+}
 
-    100% {
-        width: 150vw;
-        height: 150vw;
-        opacity: 0;
-        border-width: 0px;
-    }
+/* --- SAVED TABLES LIST STYLES (New Flat View) --- */
+
+.profile-item-wrapper {
+    background: var(--bg-container);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+    margin-bottom: 15px;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.profile-item-wrapper:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+    transform: translateY(-2px);
+}
+
+.profile-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.profile-info-group {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.profile-title {
+    font-weight: 700;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--text-main);
+}
+
+/* View Button */
+.btn-toggle-view {
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.btn-toggle-view.showing {
+    background: var(--brand-primary);
+    color: white;
+    border: 1px solid var(--brand-primary);
+}
+
+.btn-toggle-view.showing:hover {
+    background: var(--brand-hover);
 }
 
 @media (max-width: 900px) {
     .app-wrapper {
         grid-template-columns: 1fr;
     }
-
     .sidebar {
         display: none;
     }

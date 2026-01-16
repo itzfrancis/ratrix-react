@@ -70,8 +70,10 @@ const EditorView = ({ switchToViewer, setIsDirty }) => {
     const activeProfileId = modelData ? modelData.activeId : null;
     const activeProfile = (modelData && activeProfileId) ? modelData.profiles[activeProfileId] : null;
     
-    // Helper to check if current model is Excess type
+    // Check if current model is Excess type
     const isExcessModel = model === 'excess' || model === 'minExcess';
+    // Check if any profiles exist for this model
+    const hasProfiles = modelData && Object.keys(modelData.profiles).length > 0;
 
     const updateStore = (newStore) => {
         setLocalStore(newStore);
@@ -80,22 +82,15 @@ const EditorView = ({ switchToViewer, setIsDirty }) => {
 
     // --- AUTOMATION: AUTO-CLEAN EXCESS COLUMNS ---
     useEffect(() => {
-        // If we are in an excess model, but have more than 2 columns (Base + Excess),
-        // we automatically trim the extras to match the screenshot logic.
         if (isExcessModel && activeProfile && activeProfile.limits.length > 2) {
             const newData = JSON.parse(JSON.stringify(dataStore));
             const prof = newData[model].profiles[activeProfileId];
-            
-            // 1. Trim limits to 2
             prof.limits = prof.limits.slice(0, 2);
-            
-            // 2. Trim rates for all rows to 2
             prof.rows.forEach(r => {
                 if (r.rates.length > 2) {
                     r.rates = r.rates.slice(0, 2);
                 }
             });
-            
             updateStore(newData);
         }
     }, [model, activeProfileId, activeProfile?.limits.length]);
@@ -103,7 +98,10 @@ const EditorView = ({ switchToViewer, setIsDirty }) => {
 
     // --- CALCULATION LOGIC ---
     const handleCalculate = () => {
-        if (!activeProfile) return;
+        if (!activeProfile) {
+            alert("Please create or select a rate table first.");
+            return;
+        }
         
         const L = parseFloat(inputs.dimL) || 0;
         const W = parseFloat(inputs.dimW) || 0;
@@ -185,9 +183,7 @@ const EditorView = ({ switchToViewer, setIsDirty }) => {
     };
 
     const addColumn = () => {
-        // AUTOMATION: Prevent adding columns for Excess models
         if(isExcessModel) return;
-
         const newData = JSON.parse(JSON.stringify(dataStore));
         const prof = newData[model].profiles[activeProfileId];
         const last = prof.limits[prof.limits.length -1] || 0;
@@ -200,8 +196,6 @@ const EditorView = ({ switchToViewer, setIsDirty }) => {
          const newData = JSON.parse(JSON.stringify(dataStore));
          const prof = newData[model].profiles[activeProfileId];
          if(prof.limits.length <= 1) return;
-         
-         // AUTOMATION: For Excess, don't delete if we only have 2 columns
          if(isExcessModel && prof.limits.length <= 2) return;
 
          prof.limits.splice(idx, 1);
@@ -223,7 +217,6 @@ const EditorView = ({ switchToViewer, setIsDirty }) => {
         const newData = JSON.parse(JSON.stringify(dataStore));
         const pid = generateId('p_');
         
-        // AUTOMATION: Use specific limits if model is excess type
         const defLimits = isExcessModel ? [...EXCESS_DEFAULTS] : [...DEFAULT_LIMITS];
         
         newData[model].profiles[pid] = {
@@ -245,17 +238,17 @@ const EditorView = ({ switchToViewer, setIsDirty }) => {
 
     const deleteProfile = () => {
         if (!modelData) return;
-        const profileIds = Object.keys(modelData.profiles);
-        if (profileIds.length <= 1) {
-            alert("Cannot delete the last table. Please create a new one first.");
-            return;
-        }
+        if (!activeProfile) return;
+        
         if (!confirm(`Are you sure you want to delete table "${activeProfile.name}"? This cannot be undone.`)) return;
 
         const newData = JSON.parse(JSON.stringify(dataStore));
         delete newData[model].profiles[activeProfileId];
+        
         const remainingIds = Object.keys(newData[model].profiles);
-        newData[model].activeId = remainingIds[0];
+        // CHANGED: If no tables left, set activeId to null
+        newData[model].activeId = remainingIds.length > 0 ? remainingIds[0] : null;
+        
         updateStore(newData);
     };
 
@@ -357,6 +350,11 @@ const EditorView = ({ switchToViewer, setIsDirty }) => {
     };
 
     const handleImportExcel = (e) => {
+        if (!activeProfile) {
+            alert("Please create a table first to import into.");
+            return;
+        }
+
         const file = e.target.files[0];
         if(!file) return;
         
@@ -388,7 +386,6 @@ const EditorView = ({ switchToViewer, setIsDirty }) => {
             
             headers.forEach((h, colIdx) => {
                 if(!h) return;
-                // Special check for Excess column
                 if(isExcessModel && h.toLowerCase().includes('excess')) {
                      newLimits.push(999999);
                      rateColIndices.push(colIdx);
@@ -408,7 +405,6 @@ const EditorView = ({ switchToViewer, setIsDirty }) => {
             if(newLimits.length === 0) { alert("No rate columns found in header."); return; }
 
             let limitsChanged = false;
-            // Automation: Relax check for limits matching if importing
             if(JSON.stringify(newLimits) !== JSON.stringify(activeProfile.limits)) {
                 if(!confirm("The Excel file has different weight columns. Update table structure?")) return;
                 limitsChanged = true;
@@ -448,10 +444,11 @@ const EditorView = ({ switchToViewer, setIsDirty }) => {
         e.target.value = '';
     };
 
-    if (!client || !localStore || !activeProfile) return <div>Loading...</div>;
+    if (!client || !localStore) return <div>Loading...</div>;
 
-    const origins = [...new Set(activeProfile.rows.map(r => r.origin).filter(Boolean))];
-    const dests = [...new Set(activeProfile.rows.map(r => r.dest).filter(Boolean))];
+    // Origins/Dests are only relevant if a profile is active
+    const origins = activeProfile ? [...new Set(activeProfile.rows.map(r => r.origin).filter(Boolean))] : [];
+    const dests = activeProfile ? [...new Set(activeProfile.rows.map(r => r.dest).filter(Boolean))] : [];
 
     return (
         <div className="calculator-container">
@@ -485,14 +482,23 @@ const EditorView = ({ switchToViewer, setIsDirty }) => {
                     <div className="input-group" style={{paddingTop: 10, borderTop: '1px dashed var(--border-color)'}}>
                         <label>Charge Code</label>
                         <div style={{display:'flex', gap: '8px', width: '100%', alignItems:'center'}}>
-                            <select value={activeProfileId} onChange={(e) => {
-                                const newData = JSON.parse(JSON.stringify(dataStore));
-                                newData[model].activeId = e.target.value;
-                                updateStore(newData);
-                            }} style={{flex: 1, minWidth: 0, height: '35px'}}>
-                                {Object.keys(modelData.profiles).map(pid => (
-                                    <option key={pid} value={pid}>{modelData.profiles[pid].name}</option>
-                                ))}
+                            <select 
+                                value={activeProfileId || ''} 
+                                onChange={(e) => {
+                                    const newData = JSON.parse(JSON.stringify(dataStore));
+                                    newData[model].activeId = e.target.value;
+                                    updateStore(newData);
+                                }} 
+                                disabled={!hasProfiles}
+                                style={{flex: 1, minWidth: 0, height: '35px', color: !hasProfiles ? 'var(--text-muted)' : 'inherit'}}
+                            >
+                                {hasProfiles ? (
+                                    Object.keys(modelData.profiles).map(pid => (
+                                        <option key={pid} value={pid}>{modelData.profiles[pid].name}</option>
+                                    ))
+                                ) : (
+                                    <option value="">(No Tables)</option>
+                                )}
                             </select>
                             
                             <button 
@@ -507,30 +513,34 @@ const EditorView = ({ switchToViewer, setIsDirty }) => {
                             >
                                 <IconPlus />
                             </button>
-                            <button 
-                                onClick={renameProfile} 
-                                title="Rename Current Table"
-                                style={{
-                                    width: '35px', height: '35px', cursor:'pointer', 
-                                    background:'var(--bg-container)', border:'1px solid var(--text-muted)', 
-                                    color:'var(--text-muted)', borderRadius:'6px', 
-                                    display:'flex', alignItems:'center', justifyContent:'center', padding:0
-                                }}
-                            >
-                                <IconEdit />
-                            </button>
-                            <button 
-                                onClick={deleteProfile} 
-                                title="Delete Current Table"
-                                style={{
-                                    width: '35px', height: '35px', cursor:'pointer', 
-                                    background:'var(--bg-container)', border:'1px solid var(--state-danger-text)', 
-                                    color:'var(--state-danger-text)', borderRadius:'6px', 
-                                    display:'flex', alignItems:'center', justifyContent:'center', padding:0
-                                }}
-                            >
-                                <IconTrash />
-                            </button>
+                            {activeProfile && (
+                                <>
+                                    <button 
+                                        onClick={renameProfile} 
+                                        title="Rename Current Table"
+                                        style={{
+                                            width: '35px', height: '35px', cursor:'pointer', 
+                                            background:'var(--bg-container)', border:'1px solid var(--text-muted)', 
+                                            color:'var(--text-muted)', borderRadius:'6px', 
+                                            display:'flex', alignItems:'center', justifyContent:'center', padding:0
+                                        }}
+                                    >
+                                        <IconEdit />
+                                    </button>
+                                    <button 
+                                        onClick={deleteProfile} 
+                                        title="Delete Current Table"
+                                        style={{
+                                            width: '35px', height: '35px', cursor:'pointer', 
+                                            background:'var(--bg-container)', border:'1px solid var(--state-danger-text)', 
+                                            color:'var(--state-danger-text)', borderRadius:'6px', 
+                                            display:'flex', alignItems:'center', justifyContent:'center', padding:0
+                                        }}
+                                    >
+                                        <IconTrash />
+                                    </button>
+                                </>
+                            )}
                         </div>
                     </div>
 
@@ -609,117 +619,134 @@ const EditorView = ({ switchToViewer, setIsDirty }) => {
                         </select>
                     </div>
 
-                    <button id="calculateBtn" onClick={handleCalculate}>Calculate Freight</button>
+                    <button id="calculateBtn" onClick={handleCalculate} disabled={!activeProfile} style={{opacity: !activeProfile ? 0.5 : 1}}>Calculate Freight</button>
 
-                    <div className="result-box" style={{marginTop: '20px'}}>
-                         <div className="stat-grid">
-                            <div className="stat-item"><span className="stat-title">Actual</span><span className="stat-val">{calcResult ? calcResult.actWt : 0} kg</span></div>
-                            <div className="stat-item"><span className="stat-title">Volumetric</span><span className="stat-val">{calcResult ? calcResult.volWt : 0} kg</span></div>
-                            <div className="stat-item"><span className="stat-title">CBM</span><span className="stat-val">{calcResult ? calcResult.cbm.toFixed(4) : 0}</span></div>
-                         </div>
-                         <span className="result-label">Total Freight</span>
-                         <span className="result-value">
-                             {calcResult && calcResult.error ? calcResult.error : `Php ${calcResult ? calcResult.price.toFixed(2) : '0.00'}`}
-                         </span>
-                         <span className="formula-text">
-                            {calcResult && !calcResult.error 
-                                ? `${inputs.category} | ${MODEL_LABELS[model]} | ${inputs.serviceMode}` 
-                                : 'Enter details to calculate'}
-                         </span>
-                    </div>
+                    {activeProfile && (
+                        <div className="result-box" style={{marginTop: '20px'}}>
+                             <div className="stat-grid">
+                                <div className="stat-item"><span className="stat-title">Actual</span><span className="stat-val">{calcResult ? calcResult.actWt : 0} kg</span></div>
+                                <div className="stat-item"><span className="stat-title">Volumetric</span><span className="stat-val">{calcResult ? calcResult.volWt : 0} kg</span></div>
+                                <div className="stat-item"><span className="stat-title">CBM</span><span className="stat-val">{calcResult ? calcResult.cbm.toFixed(4) : 0}</span></div>
+                             </div>
+                             <span className="result-label">Total Freight</span>
+                             <span className="result-value">
+                                 {calcResult && calcResult.error ? calcResult.error : `Php ${calcResult ? calcResult.price.toFixed(2) : '0.00'}`}
+                             </span>
+                             <span className="formula-text">
+                                {calcResult && !calcResult.error 
+                                    ? `${inputs.category} | ${MODEL_LABELS[model]} | ${inputs.serviceMode}` 
+                                    : 'Enter details to calculate'}
+                             </span>
+                        </div>
+                    )}
                 </div>
 
                 <div className="info-panel">
-                    <div className="action-bar" style={{marginBottom: '10px'}}>
-                        <button onClick={addRow} className="btn-add">+ Add Route</button>
-                        {!isExcessModel && (
-                            <button onClick={addColumn} className="btn-add" style={{background: 'var(--bg-secondary)', color:'var(--text-muted)'}}>+ Add Weight Col</button>
-                        )}
-                    </div>
+                    {/* CHANGED: If no table is active, show empty state message */}
+                    {!activeProfile ? (
+                        <div style={{
+                            display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', 
+                            height:'100%', color:'var(--text-muted)', textAlign:'center', opacity: 0.7
+                        }}>
+                            <IconFolder />
+                            <h3 style={{marginTop:10, marginBottom:5}}>No Table Selected</h3>
+                            <p style={{fontSize:'0.85rem', maxWidth: '300px'}}>
+                                Create a new rate table or select an existing one to start editing rates and calculating freight.
+                            </p>
+                        </div>
+                    ) : (
+                        <>
+                            <div className="action-bar" style={{marginBottom: '10px'}}>
+                                <button onClick={addRow} className="btn-add">+ Add Route</button>
+                                {!isExcessModel && (
+                                    <button onClick={addColumn} className="btn-add" style={{background: 'var(--bg-secondary)', color:'var(--text-muted)'}}>+ Add Weight Col</button>
+                                )}
+                            </div>
 
-                    <div className="table-wrapper">
-                        <table className="rate-table">
-                            <thead>
-                                <tr>
-                                    <th style={{width:100}}>Origin</th>
-                                    <th style={{width:100}}>Dest</th>
-                                    {activeProfile.limits.map((lim, i) => {
-                                        // Custom Headers for Excess Models
-                                        if (isExcessModel && i === 1) {
-                                            return (
-                                                <th key={i}>
-                                                    <div className="col-header-container">
-                                                        <span style={{color: 'var(--brand-primary)', fontWeight: 'bold'}}>Excess Rate</span>
-                                                    </div>
-                                                </th>
-                                            );
-                                        }
+                            <div className="table-wrapper">
+                                <table className="rate-table">
+                                    <thead>
+                                        <tr>
+                                            <th style={{width:100}}>Origin</th>
+                                            <th style={{width:100}}>Dest</th>
+                                            {activeProfile.limits.map((lim, i) => {
+                                                if (isExcessModel && i === 1) {
+                                                    return (
+                                                        <th key={i}>
+                                                            <div className="col-header-container">
+                                                                <span style={{color: 'var(--brand-primary)', fontWeight: 'bold'}}>Excess Rate</span>
+                                                            </div>
+                                                        </th>
+                                                    );
+                                                }
 
-                                        const prev = i === 0 ? 1 : activeProfile.limits[i-1] + 1;
-                                        return (
-                                            <th key={i}>
-                                                 <div className="col-header-container">
-                                                    {!isExcessModel && (
-                                                        <button className="btn-col-delete" onClick={() => deleteColumn(i)}><IconX size={10} /></button>
-                                                    )}
-                                                    <div className="range-wrapper">
-                                                        <span>{prev}-</span>
-                                                        <input type="number" className="header-input" value={lim} onChange={(e) => handleLimitChange(i, e.target.value)} />
-                                                    </div>
-                                                 </div>
-                                            </th>
-                                        );
-                                    })}
-                                    <th>Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {activeProfile.rows.map((row, rIdx) => (
-                                    <tr key={rIdx} className={calcResult && calcResult.routeIndex === rIdx ? 'active-route-row' : ''}>
-                                        <td>
-                                            <input className="editable-input text-input" value={row.origin} onChange={(e) => handleEditRoute(rIdx, 'origin', e.target.value)} />
-                                        </td>
-                                        <td>
-                                            <input className="editable-input text-input" value={row.dest} onChange={(e) => handleEditRoute(rIdx, 'dest', e.target.value)} />
-                                        </td>
-                                        {activeProfile.limits.map((_, cIdx) => (
-                                            <td key={cIdx}>
-                                                <input className="editable-input" 
-                                                    type="number"
-                                                    value={row.rates[cIdx] === null ? "" : row.rates[cIdx]} 
-                                                    placeholder="-"
-                                                    onChange={(e) => handleEditRate(rIdx, cIdx, e.target.value)} />
-                                            </td>
+                                                const prev = i === 0 ? 1 : activeProfile.limits[i-1] + 1;
+                                                return (
+                                                    <th key={i}>
+                                                         <div className="col-header-container">
+                                                            {!isExcessModel && (
+                                                                <button className="btn-col-delete" onClick={() => deleteColumn(i)}><IconX size={10} /></button>
+                                                            )}
+                                                            <div className="range-wrapper">
+                                                                <span>{prev}-</span>
+                                                                <input type="number" className="header-input" value={lim} onChange={(e) => handleLimitChange(i, e.target.value)} />
+                                                            </div>
+                                                         </div>
+                                                    </th>
+                                                );
+                                            })}
+                                            <th>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {activeProfile.rows.map((row, rIdx) => (
+                                            <tr key={rIdx} className={calcResult && calcResult.routeIndex === rIdx ? 'active-route-row' : ''}>
+                                                <td>
+                                                    <input className="editable-input text-input" value={row.origin} onChange={(e) => handleEditRoute(rIdx, 'origin', e.target.value)} />
+                                                </td>
+                                                <td>
+                                                    <input className="editable-input text-input" value={row.dest} onChange={(e) => handleEditRoute(rIdx, 'dest', e.target.value)} />
+                                                </td>
+                                                {activeProfile.limits.map((_, cIdx) => (
+                                                    <td key={cIdx}>
+                                                        <input className="editable-input" 
+                                                            type="number"
+                                                            value={row.rates[cIdx] === null ? "" : row.rates[cIdx]} 
+                                                            placeholder="-"
+                                                            onChange={(e) => handleEditRate(rIdx, cIdx, e.target.value)} />
+                                                    </td>
+                                                ))}
+                                                <td>
+                                                    <button className="btn-delete" onClick={() => deleteRow(rIdx)}><IconX size={12}/></button>
+                                                </td>
+                                            </tr>
                                         ))}
-                                        <td>
-                                            <button className="btn-delete" onClick={() => deleteRow(rIdx)}><IconX size={12}/></button>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                    
-                    <div style={{display:'flex', gap:10, marginBottom:15}}>
-                        <button onClick={handleExportExcel} className="btn-export">Download Excel (XLSX)</button>
-                        <button onClick={handleBackupJson} className="btn-export">Backup Client Data (JSON)</button>
-                    </div>
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            <div style={{display:'flex', gap:10, marginBottom:15}}>
+                                <button onClick={handleExportExcel} className="btn-export">Download Excel (XLSX)</button>
+                                <button onClick={handleBackupJson} className="btn-export">Backup Client Data (JSON)</button>
+                            </div>
 
-                    <div style={{marginBottom: 20, borderTop: '1px dashed var(--border-color)', paddingTop: 15, display:'flex', gap:10}}>
-                        <div style={{flex:1}}>
-                             <input type="file" accept=".xlsx" ref={excelInputRef} style={{display:'none'}} onChange={handleImportExcel} />
-                             <button className="btn-import" style={{background:'var(--bg-container)', border:'1px solid var(--brand-primary)', color:'var(--brand-primary)', display:'flex', alignItems:'center', justifyContent:'center', gap:8}}
-                                onClick={() => excelInputRef.current.click()}>
-                                <IconUpload /> Import Excel Rates
-                             </button>
-                        </div>
-                        <div style={{flex:1}}>
-                             <input type="file" accept=".json" ref={jsonInputRef} style={{display:'none'}} onChange={handleRestoreJson} />
-                             <button className="btn-import" onClick={() => jsonInputRef.current.click()} style={{display:'flex', alignItems:'center', justifyContent:'center', gap:8}}>
-                                <IconFolder /> Restore Client Backup
-                             </button>
-                        </div>
-                    </div>
+                            <div style={{marginBottom: 20, borderTop: '1px dashed var(--border-color)', paddingTop: 15, display:'flex', gap:10}}>
+                                <div style={{flex:1}}>
+                                     <input type="file" accept=".xlsx" ref={excelInputRef} style={{display:'none'}} onChange={handleImportExcel} />
+                                     <button className="btn-import" style={{background:'var(--bg-container)', border:'1px solid var(--brand-primary)', color:'var(--brand-primary)', display:'flex', alignItems:'center', justifyContent:'center', gap:8}}
+                                        onClick={() => excelInputRef.current.click()}>
+                                        <IconUpload /> Import Excel Rates
+                                     </button>
+                                </div>
+                                <div style={{flex:1}}>
+                                     <input type="file" accept=".json" ref={jsonInputRef} style={{display:'none'}} onChange={handleRestoreJson} />
+                                     <button className="btn-import" onClick={() => jsonInputRef.current.click()} style={{display:'flex', alignItems:'center', justifyContent:'center', gap:8}}>
+                                        <IconFolder /> Restore Client Backup
+                                     </button>
+                                </div>
+                            </div>
+                        </>
+                    )}
                 </div>
             </div>
         </div>

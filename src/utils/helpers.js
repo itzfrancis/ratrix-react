@@ -39,21 +39,10 @@ export const MODEL_LABELS = {
 export const createFreshClientStore = () => {
     let store = {};
     MODEL_KEYS.forEach(key => {
-        const pid = generateId('p_');
-        
-        // AUTOMATION: Check if model is Excess type
-        const isExcessModel = key === 'excess' || key === 'minExcess';
-        const initialLimits = isExcessModel ? [...EXCESS_DEFAULTS] : [...DEFAULT_LIMITS];
-
+        // CHANGED: Start with NO active ID and NO profiles
         store[key] = {
-            activeId: pid,
+            activeId: null,
             profiles: {}
-        };
-
-        store[key].profiles[pid] = {
-            name: "Standard Table",
-            limits: initialLimits,
-            rows: [createEmptyRow(initialLimits.length)]
         };
     });
     return store;

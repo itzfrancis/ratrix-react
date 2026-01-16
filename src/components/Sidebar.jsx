@@ -73,11 +73,11 @@ const Sidebar = ({ onNavigate }) => {
     };
 
     return (
-        <aside className="sidebar" style={{ 
-            transition: 'width 0.3s ease', 
-            padding: isCollapsed ? '20px 10px' : '20px',
-            alignItems: isCollapsed ? 'center' : 'stretch'
-        }}>
+       <aside className="sidebar" style={{ 
+    // The grid handles the width animation now
+    padding: isCollapsed ? '20px 10px' : '20px',
+    alignItems: isCollapsed ? 'center' : 'stretch'
+}}>
             {/* HEADER SECTION */}
             <div className="sidebar-header" style={{ flexDirection: isCollapsed ? 'column' : 'row', gap: isCollapsed ? 15 : 0, justifyContent: isCollapsed ? 'center' : 'space-between' }}>
                 {!isCollapsed && <h2>Clients</h2>}
