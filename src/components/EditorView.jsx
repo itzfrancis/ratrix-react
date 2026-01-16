@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useData } from '../context/DataContext';
-import { generateId, createEmptyRow, MODEL_KEYS, MODEL_LABELS } from '../utils/helpers';
+import { generateId, createEmptyRow, MODEL_KEYS, MODEL_LABELS, DEFAULT_LIMITS, EXCESS_DEFAULTS } from '../utils/helpers';
 import { strategies } from '../utils/calculations';
 import ExcelJS from 'exceljs';
 
@@ -69,11 +69,37 @@ const EditorView = ({ switchToViewer, setIsDirty }) => {
     const modelData = dataStore ? dataStore[model] : null;
     const activeProfileId = modelData ? modelData.activeId : null;
     const activeProfile = (modelData && activeProfileId) ? modelData.profiles[activeProfileId] : null;
+    
+    // Helper to check if current model is Excess type
+    const isExcessModel = model === 'excess' || model === 'minExcess';
 
     const updateStore = (newStore) => {
         setLocalStore(newStore);
         if(setIsDirty) setIsDirty(true);
     };
+
+    // --- AUTOMATION: AUTO-CLEAN EXCESS COLUMNS ---
+    useEffect(() => {
+        // If we are in an excess model, but have more than 2 columns (Base + Excess),
+        // we automatically trim the extras to match the screenshot logic.
+        if (isExcessModel && activeProfile && activeProfile.limits.length > 2) {
+            const newData = JSON.parse(JSON.stringify(dataStore));
+            const prof = newData[model].profiles[activeProfileId];
+            
+            // 1. Trim limits to 2
+            prof.limits = prof.limits.slice(0, 2);
+            
+            // 2. Trim rates for all rows to 2
+            prof.rows.forEach(r => {
+                if (r.rates.length > 2) {
+                    r.rates = r.rates.slice(0, 2);
+                }
+            });
+            
+            updateStore(newData);
+        }
+    }, [model, activeProfileId, activeProfile?.limits.length]);
+
 
     // --- CALCULATION LOGIC ---
     const handleCalculate = () => {
@@ -159,6 +185,9 @@ const EditorView = ({ switchToViewer, setIsDirty }) => {
     };
 
     const addColumn = () => {
+        // AUTOMATION: Prevent adding columns for Excess models
+        if(isExcessModel) return;
+
         const newData = JSON.parse(JSON.stringify(dataStore));
         const prof = newData[model].profiles[activeProfileId];
         const last = prof.limits[prof.limits.length -1] || 0;
@@ -171,6 +200,10 @@ const EditorView = ({ switchToViewer, setIsDirty }) => {
          const newData = JSON.parse(JSON.stringify(dataStore));
          const prof = newData[model].profiles[activeProfileId];
          if(prof.limits.length <= 1) return;
+         
+         // AUTOMATION: For Excess, don't delete if we only have 2 columns
+         if(isExcessModel && prof.limits.length <= 2) return;
+
          prof.limits.splice(idx, 1);
          prof.rows.forEach(r => r.rates.splice(idx, 1));
          updateStore(newData);
@@ -189,7 +222,10 @@ const EditorView = ({ switchToViewer, setIsDirty }) => {
         if(!name) return;
         const newData = JSON.parse(JSON.stringify(dataStore));
         const pid = generateId('p_');
-        const defLimits = [50,100,150,500];
+        
+        // AUTOMATION: Use specific limits if model is excess type
+        const defLimits = isExcessModel ? [...EXCESS_DEFAULTS] : [...DEFAULT_LIMITS];
+        
         newData[model].profiles[pid] = {
             name, limits: defLimits, rows: [createEmptyRow(defLimits.length)]
         };
@@ -235,8 +271,12 @@ const EditorView = ({ switchToViewer, setIsDirty }) => {
         ];
         
         activeProfile.limits.forEach((lim, i) => {
-            const prev = i === 0 ? 1 : activeProfile.limits[i-1] + 1;
-            colDefs.push({ header: `${prev}-${lim}`, width: 10 });
+            if (isExcessModel && i === 1) {
+                colDefs.push({ header: 'Excess Rate', width: 15 });
+            } else {
+                const prev = i === 0 ? 1 : activeProfile.limits[i-1] + 1;
+                colDefs.push({ header: `${prev}-${lim}`, width: 10 });
+            }
         });
 
         ws.addRow([`Client: ${client.name}`]);
@@ -348,6 +388,13 @@ const EditorView = ({ switchToViewer, setIsDirty }) => {
             
             headers.forEach((h, colIdx) => {
                 if(!h) return;
+                // Special check for Excess column
+                if(isExcessModel && h.toLowerCase().includes('excess')) {
+                     newLimits.push(999999);
+                     rateColIndices.push(colIdx);
+                     return;
+                }
+
                 const normalized = h.trim().replace(/rate_/i, '').replace(/-/g, '_');
                 const parts = normalized.split('_');
                 const limitVal = parseFloat(parts[parts.length - 1]);
@@ -361,6 +408,7 @@ const EditorView = ({ switchToViewer, setIsDirty }) => {
             if(newLimits.length === 0) { alert("No rate columns found in header."); return; }
 
             let limitsChanged = false;
+            // Automation: Relax check for limits matching if importing
             if(JSON.stringify(newLimits) !== JSON.stringify(activeProfile.limits)) {
                 if(!confirm("The Excel file has different weight columns. Update table structure?")) return;
                 limitsChanged = true;
@@ -430,7 +478,6 @@ const EditorView = ({ switchToViewer, setIsDirty }) => {
                     <div className="input-group">
                         <label>Pricing Model</label>
                         <select value={model} onChange={(e) => setModel(e.target.value)}>
-                            {/* NEW: Use MODEL_LABELS to display friendly names */}
                             {MODEL_KEYS.map(k => <option key={k} value={k}>{MODEL_LABELS[k]}</option>)}
                         </select>
                     </div>
@@ -564,7 +611,6 @@ const EditorView = ({ switchToViewer, setIsDirty }) => {
 
                     <button id="calculateBtn" onClick={handleCalculate}>Calculate Freight</button>
 
-                    {/* --- RESULT BOX (MOVED HERE) --- */}
                     <div className="result-box" style={{marginTop: '20px'}}>
                          <div className="stat-grid">
                             <div className="stat-item"><span className="stat-title">Actual</span><span className="stat-val">{calcResult ? calcResult.actWt : 0} kg</span></div>
@@ -584,10 +630,11 @@ const EditorView = ({ switchToViewer, setIsDirty }) => {
                 </div>
 
                 <div className="info-panel">
-                    {/* --- BUTTONS MOVED TO TOP OF TABLE --- */}
                     <div className="action-bar" style={{marginBottom: '10px'}}>
                         <button onClick={addRow} className="btn-add">+ Add Route</button>
-                        <button onClick={addColumn} className="btn-add" style={{background: 'var(--bg-secondary)', color:'var(--text-muted)'}}>+ Add Weight Col</button>
+                        {!isExcessModel && (
+                            <button onClick={addColumn} className="btn-add" style={{background: 'var(--bg-secondary)', color:'var(--text-muted)'}}>+ Add Weight Col</button>
+                        )}
                     </div>
 
                     <div className="table-wrapper">
@@ -597,11 +644,24 @@ const EditorView = ({ switchToViewer, setIsDirty }) => {
                                     <th style={{width:100}}>Origin</th>
                                     <th style={{width:100}}>Dest</th>
                                     {activeProfile.limits.map((lim, i) => {
+                                        // Custom Headers for Excess Models
+                                        if (isExcessModel && i === 1) {
+                                            return (
+                                                <th key={i}>
+                                                    <div className="col-header-container">
+                                                        <span style={{color: 'var(--brand-primary)', fontWeight: 'bold'}}>Excess Rate</span>
+                                                    </div>
+                                                </th>
+                                            );
+                                        }
+
                                         const prev = i === 0 ? 1 : activeProfile.limits[i-1] + 1;
                                         return (
                                             <th key={i}>
                                                  <div className="col-header-container">
-                                                    <button className="btn-col-delete" onClick={() => deleteColumn(i)}><IconX size={10} /></button>
+                                                    {!isExcessModel && (
+                                                        <button className="btn-col-delete" onClick={() => deleteColumn(i)}><IconX size={10} /></button>
+                                                    )}
                                                     <div className="range-wrapper">
                                                         <span>{prev}-</span>
                                                         <input type="number" className="header-input" value={lim} onChange={(e) => handleLimitChange(i, e.target.value)} />

@@ -10,14 +10,22 @@ export const createEmptyRow = (limitCount) => {
     };
 };
 
+// Standard limits for Fixed, Flat, Cumulative
 export const DEFAULT_LIMITS = [50, 100, 150, 500];
 
+// Specific limits for Excess models (Base limit + Placeholder for Excess)
+export const EXCESS_DEFAULTS = [50, 999999];
+
 export const MODEL_KEYS = [
-    'fixed', 'minFixed', 'flat', 'cumulative',
-    'minCumulative', 'excess', 'minExcess'
+    'fixed', 
+    'minFixed', 
+    'flat', 
+    'cumulative', 
+    'minCumulative', 
+    'excess', 
+    'minExcess'
 ];
 
-// NEW: Display Names Mapping
 export const MODEL_LABELS = {
     fixed: "Fixed Bracket Pricing",
     minFixed: "Minimum Fixed Bracket Pricing",
@@ -32,7 +40,10 @@ export const createFreshClientStore = () => {
     let store = {};
     MODEL_KEYS.forEach(key => {
         const pid = generateId('p_');
-        const initialLimits = [...DEFAULT_LIMITS];
+        
+        // AUTOMATION: Check if model is Excess type
+        const isExcessModel = key === 'excess' || key === 'minExcess';
+        const initialLimits = isExcessModel ? [...EXCESS_DEFAULTS] : [...DEFAULT_LIMITS];
 
         store[key] = {
             activeId: pid,
