@@ -24,7 +24,7 @@ const IconFolder = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
 );
 const IconUpload = () => (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
 );
 const IconPlus = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
@@ -109,14 +109,23 @@ const EditorView = ({ switchToViewer, setIsDirty }) => {
         const cbm = (L * W * H) / 1000000;
         const actWt = parseFloat(inputs.weight) || 0;
         
-        const chargeable = inputs.chargeBasis === 'volumetric' ? volWt : actWt;
+        // Determine chargeable unit based on user selection
+        let chargeable;
+        if (inputs.chargeBasis === 'cbm') {
+            // Use CBM (rounded to 4 decimals for precision)
+            chargeable = parseFloat(cbm.toFixed(4));
+        } else if (inputs.chargeBasis === 'volumetric') {
+            chargeable = volWt;
+        } else {
+            chargeable = actWt;
+        }
         
         const routeIndex = activeProfile.rows.findIndex(r => r.origin === inputs.origin && r.dest === inputs.dest);
         
         let result = { price: 0, error: null, actWt, volWt, cbm, routeIndex };
 
         if (chargeable <= 0) {
-            result.error = "Invalid Weight";
+            result.error = "Invalid Weight/CBM";
             setCalcResult(result);
             return;
         }
@@ -144,16 +153,29 @@ const EditorView = ({ switchToViewer, setIsDirty }) => {
         if (!activeProfile) return;
 
         // 1. Validate Limits (Headers)
-        // Ensure no headers are left as "0" (Default)
-        // Exception: For Excess Model, index 1 is internal 999999, so we skip that check
-        const invalidLimit = activeProfile.limits.some((l, idx) => {
-             if (isExcessModel && idx === 1) return false; // Ignore excess placeholder
-             return l === null || l === "" || isNaN(l) || parseFloat(l) === 0;
-        });
+        for (let i = 0; i < activeProfile.limits.length; i++) {
+             const val = activeProfile.limits[i];
+             
+             // Special handling for Excess Model: Index 1 is the placeholder (999999)
+             if (isExcessModel && i === 1) continue;
 
-        if (invalidLimit) {
-             alert("All fields need to be filled up before saving. Please set all weight break points (headers) to values greater than 0.");
-             return;
+             // Check A: Is Positive Number?
+             if (val === null || val === "" || isNaN(val) || parseFloat(val) <= 0) {
+                 alert(`Invalid Weight Limit at Column ${i+1}. Value must be greater than 0.`);
+                 return;
+             }
+
+             // Check B: Ascending Order Check
+             // Ensure this limit is strictly greater than the previous one
+             if (i > 0 && !isExcessModel) {
+                 const prev = parseFloat(activeProfile.limits[i-1]);
+                 const curr = parseFloat(val);
+                 
+                 if (curr <= prev) {
+                     alert(`Invalid Weight Limit at Column ${i+1} (${curr}). It must be higher than the previous limit (${prev}).`);
+                     return;
+                 }
+             }
         }
 
         // 2. Validate Rows (Origin, Dest, Rates)
@@ -653,6 +675,7 @@ const EditorView = ({ switchToViewer, setIsDirty }) => {
                         <select value={inputs.chargeBasis} onChange={e => setInputs({...inputs, chargeBasis: e.target.value})}>
                             <option value="actual">Actual Weight</option>
                             <option value="volumetric">Volumetric Weight</option>
+                            <option value="cbm">CBM</option>
                         </select>
                     </div>
 
