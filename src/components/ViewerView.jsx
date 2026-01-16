@@ -18,16 +18,42 @@ const IconInbox = () => (
 const IconList = () => (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
 );
+const IconTrash = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+);
 
 const ViewerView = ({ backToEditor }) => {
-    const { getActiveClient } = useData();
+    const { getActiveClient, updateClientData } = useData();
     const client = getActiveClient();
     
-    // State to track which specific table is currently being viewed (Detail View)
-    // If null, we are in List View
-    const [viewingProfile, setViewingProfile] = useState(null); // { model: 'fixed', profile: object }
+    // State to track which specific table is currently being viewed
+    const [viewingProfile, setViewingProfile] = useState(null); // { model: 'fixed', profile: object, id: 'p_xxx' }
 
     if (!client) return null;
+
+    const handleDelete = (model, profileId, profileName) => {
+        if (!confirm(`Are you sure you want to delete "${profileName}"? This cannot be undone.`)) return;
+
+        // Clone current data
+        const newData = JSON.parse(JSON.stringify(client.data_store));
+        
+        // Delete the profile
+        delete newData[model].profiles[profileId];
+        
+        // If it was the active one, reset activeId
+        if (newData[model].activeId === profileId) {
+            const remaining = Object.keys(newData[model].profiles);
+            newData[model].activeId = remaining.length > 0 ? remaining[0] : null;
+        }
+
+        // Commit change immediately
+        updateClientData(client.id, newData);
+
+        // If we were viewing this table, go back to list
+        if (viewingProfile && viewingProfile.id === profileId) {
+            setViewingProfile(null);
+        }
+    };
 
     // Check if client has any tables at all
     const hasAnyTables = MODEL_KEYS.some(model => {
@@ -37,7 +63,14 @@ const ViewerView = ({ backToEditor }) => {
 
     // --- RENDER DETAIL VIEW (Single Table) ---
     if (viewingProfile) {
-        const { model, profile } = viewingProfile;
+        const { model, profile, id } = viewingProfile;
+        
+        // Safety check: if profile was deleted while viewing (edge case), go back
+        if (!client.data_store[model]?.profiles[id]) {
+            setViewingProfile(null);
+            return null;
+        }
+
         return (
             <div className="viewer-container">
                 <div className="viewer-header">
@@ -47,9 +80,18 @@ const ViewerView = ({ backToEditor }) => {
                         </h1>
                         <div style={{ color: 'var(--text-muted)' }}>{client.name}</div>
                     </div>
-                    <button className="btn-back" onClick={() => setViewingProfile(null)}>
-                        <IconList /> Back to List
-                    </button>
+                    <div style={{display:'flex', gap:10}}>
+                        <button 
+                            className="btn-back" 
+                            style={{color: 'var(--state-danger-text)', borderColor: 'var(--state-danger-text)'}}
+                            onClick={() => handleDelete(model, id, profile.name)}
+                        >
+                            <IconTrash /> Delete
+                        </button>
+                        <button className="btn-back" onClick={() => setViewingProfile(null)}>
+                            <IconList /> Back to List
+                        </button>
+                    </div>
                 </div>
 
                 <div className="viewer-content">
@@ -124,15 +166,24 @@ const ViewerView = ({ backToEditor }) => {
                                             <div className="profile-title">
                                                 <IconFile /> {profile.name}
                                             </div>
-                                            {/* REMOVED: Pricing Model Badge */}
                                         </div>
 
-                                        <button 
-                                            className="btn-toggle-view showing"
-                                            onClick={() => setViewingProfile({ model, profile })}
-                                        >
-                                            <IconEye /> View Table
-                                        </button>
+                                        <div style={{display:'flex', gap: 10}}>
+                                            <button 
+                                                className="icon-btn-danger"
+                                                style={{width: '32px', height: '32px', padding: 0}}
+                                                title="Delete Table"
+                                                onClick={() => handleDelete(model, profileId, profile.name)}
+                                            >
+                                                <IconTrash />
+                                            </button>
+                                            <button 
+                                                className="btn-toggle-view showing"
+                                                onClick={() => setViewingProfile({ model, profile, id: profileId })}
+                                            >
+                                                <IconEye /> View Table
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             );

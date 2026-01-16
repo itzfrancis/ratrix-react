@@ -10,11 +10,11 @@ export const createEmptyRow = (limitCount) => {
     };
 };
 
-// Standard limits for Fixed, Flat, Cumulative
-export const DEFAULT_LIMITS = [50, 100, 150, 500];
+// CHANGED: Default now starts with a single column "0" (Renders as 1-0)
+export const DEFAULT_LIMITS = [0];
 
-// Specific limits for Excess models (Base limit + Placeholder for Excess)
-export const EXCESS_DEFAULTS = [50, 999999];
+// CHANGED: Excess now starts with Base "0" and Excess Placeholder
+export const EXCESS_DEFAULTS = [0, 999999];
 
 export const MODEL_KEYS = [
     'fixed', 
@@ -39,7 +39,6 @@ export const MODEL_LABELS = {
 export const createFreshClientStore = () => {
     let store = {};
     MODEL_KEYS.forEach(key => {
-        // CHANGED: Start with NO active ID and NO profiles
         store[key] = {
             activeId: null,
             profiles: {}

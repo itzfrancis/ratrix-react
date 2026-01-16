@@ -24,7 +24,7 @@ const IconFolder = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
 );
 const IconUpload = () => (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
 );
 const IconPlus = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
@@ -70,9 +70,7 @@ const EditorView = ({ switchToViewer, setIsDirty }) => {
     const activeProfileId = modelData ? modelData.activeId : null;
     const activeProfile = (modelData && activeProfileId) ? modelData.profiles[activeProfileId] : null;
     
-    // Check if current model is Excess type
     const isExcessModel = model === 'excess' || model === 'minExcess';
-    // Check if any profiles exist for this model
     const hasProfiles = modelData && Object.keys(modelData.profiles).length > 0;
 
     const updateStore = (newStore) => {
@@ -141,8 +139,45 @@ const EditorView = ({ switchToViewer, setIsDirty }) => {
         setCalcResult(result);
     };
 
-    // --- SAVE TRANSITION HANDLER ---
+    // --- SAVE TRANSITION HANDLER (WITH VALIDATION) ---
     const handleSaveTransition = () => {
+        if (!activeProfile) return;
+
+        // 1. Validate Limits (Headers)
+        // Ensure no headers are left as "0" (Default)
+        // Exception: For Excess Model, index 1 is internal 999999, so we skip that check
+        const invalidLimit = activeProfile.limits.some((l, idx) => {
+             if (isExcessModel && idx === 1) return false; // Ignore excess placeholder
+             return l === null || l === "" || isNaN(l) || parseFloat(l) === 0;
+        });
+
+        if (invalidLimit) {
+             alert("All fields need to be filled up before saving. Please set all weight break points (headers) to values greater than 0.");
+             return;
+        }
+
+        // 2. Validate Rows (Origin, Dest, Rates)
+        for (let i = 0; i < activeProfile.rows.length; i++) {
+            const r = activeProfile.rows[i];
+            
+            // Check Origin/Dest
+            if (!r.origin || !r.origin.trim()) {
+                alert("All fields need to be filled up before saving. Row " + (i+1) + " has a missing Origin.");
+                return;
+            }
+            if (!r.dest || !r.dest.trim()) {
+                alert("All fields need to be filled up before saving. Row " + (i+1) + " has a missing Destination.");
+                return;
+            }
+
+            // Check Rates
+            const invalidRate = r.rates.some(rate => rate === null || rate === "" || isNaN(rate));
+            if (invalidRate) {
+                alert("All fields need to be filled up before saving. Row " + (i+1) + " has missing or invalid rates.");
+                return;
+            }
+        }
+
         updateClientData(client.id, localStore);
         setIsSaving(true);
         if(setIsDirty) setIsDirty(false); 
@@ -186,8 +221,10 @@ const EditorView = ({ switchToViewer, setIsDirty }) => {
         if(isExcessModel) return;
         const newData = JSON.parse(JSON.stringify(dataStore));
         const prof = newData[model].profiles[activeProfileId];
-        const last = prof.limits[prof.limits.length -1] || 0;
-        prof.limits.push(last + 50);
+        
+        // Push 0 so it requires user input (renders as "Start-0")
+        prof.limits.push(0);
+        
         prof.rows.forEach(r => r.rates.push(null));
         updateStore(newData);
     };
@@ -246,9 +283,10 @@ const EditorView = ({ switchToViewer, setIsDirty }) => {
         delete newData[model].profiles[activeProfileId];
         
         const remainingIds = Object.keys(newData[model].profiles);
-        // CHANGED: If no tables left, set activeId to null
         newData[model].activeId = remainingIds.length > 0 ? remainingIds[0] : null;
         
+        // Immediate Global Save
+        updateClientData(client.id, newData);
         updateStore(newData);
     };
 
@@ -446,7 +484,6 @@ const EditorView = ({ switchToViewer, setIsDirty }) => {
 
     if (!client || !localStore) return <div>Loading...</div>;
 
-    // Origins/Dests are only relevant if a profile is active
     const origins = activeProfile ? [...new Set(activeProfile.rows.map(r => r.origin).filter(Boolean))] : [];
     const dests = activeProfile ? [...new Set(activeProfile.rows.map(r => r.dest).filter(Boolean))] : [];
 
@@ -642,7 +679,6 @@ const EditorView = ({ switchToViewer, setIsDirty }) => {
                 </div>
 
                 <div className="info-panel">
-                    {/* CHANGED: If no table is active, show empty state message */}
                     {!activeProfile ? (
                         <div style={{
                             display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', 
